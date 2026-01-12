@@ -19,6 +19,7 @@
 
     const predefinedOrderedBy = ["ARN", "MA", "FM", "DA"];
     let defaultOrderedBy = $state(predefinedOrderedBy[0]);
+    let defaultOrderDate = $state(new Date().toISOString().split("T")[0]);
 
     const dbFields = [
         { key: "order_date", label: "Order Date" },
@@ -139,6 +140,9 @@
                         } else if (field.key === "ordered_by" && !excelHeader) {
                             // Use default if no mapping for ordered_by
                             newRow["ordered_by"] = defaultOrderedBy;
+                        } else if (field.key === "order_date" && !excelHeader) {
+                            // Use default date if no mapping
+                            newRow["order_date"] = defaultOrderDate;
                         }
                     });
 
@@ -278,6 +282,15 @@
                                         <option value={val}>{val}</option>
                                     {/each}
                                 </select>
+                            {/if}
+
+                            <!-- Special handling for Order Date default -->
+                            {#if field.key === "order_date" && !mapping["order_date"]}
+                                <input
+                                    type="date"
+                                    bind:value={defaultOrderDate}
+                                    class="w-[140px] rounded-md border border-zinc-700 bg-zinc-950 px-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-600"
+                                />
                             {/if}
                         </div>
                     </div>
