@@ -32,6 +32,10 @@ export const orderService = {
             .neq("id", "00000000-0000-0000-0000-000000000000");
     },
 
+    async deleteOrder(id: string) {
+        return await supabase.from("orders").delete().eq("id", id);
+    },
+
     async upsertOrder(order: Partial<Order>) {
         // Logic for saving/updating from the dialog, if we want to move it here later.
         // For now keeping it simple as per current usage patterns (which use direct calls often)

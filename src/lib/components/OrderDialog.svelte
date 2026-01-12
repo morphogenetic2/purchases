@@ -4,11 +4,10 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
-    import * as Command from "$lib/components/ui/command";
-    import * as Popover from "$lib/components/ui/popover";
-    import { ChevronsUpDown, Check, Plus } from "lucide-svelte";
     import { cn } from "$lib/utils";
     import { supabase } from "$lib/supabaseClient";
+    import { orderService } from "$lib/services/orderService";
+    import { Trash2 } from "lucide-svelte";
 
     let {
         order = null,
@@ -116,6 +115,23 @@
             isLoading = false;
         }
     }
+    async function handleDelete() {
+        if (!order?.id) return;
+        if (!confirm("Are you sure you want to delete this order?")) return;
+
+        isLoading = true;
+        try {
+            const { error } = await orderService.deleteOrder(order.id);
+            if (error) throw error;
+            if (onSave) onSave(); // Refresh list
+            isOpen = false;
+        } catch (err: any) {
+            console.error("Delete error:", err);
+            alert("Error deleting: " + err.message);
+        } finally {
+            isLoading = false;
+        }
+    }
 </script>
 
 <Dialog.Root bind:open={isOpen}>
@@ -172,79 +188,18 @@
             <div class="grid grid-cols-2 gap-6">
                 <div class="grid gap-2">
                     <Label for="provider" class="text-zinc-300">Provider</Label>
-                    <Popover.Root bind:open={openProvider}>
-                        <Popover.Trigger class="w-full">
-                            <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-expanded={openProvider}
-                                class="w-full justify-between bg-zinc-900 border-zinc-700 text-zinc-100 hover:bg-zinc-800 hover:text-white"
-                            >
-                                {formData.provider ||
-                                    "Select or type provider..."}
-                                <ChevronsUpDown
-                                    class="ml-2 h-4 w-4 shrink-0 opacity-50"
-                                />
-                            </Button>
-                        </Popover.Trigger>
-                        <Popover.Content
-                            class="w-[300px] p-0 bg-zinc-900 border-zinc-800 text-zinc-100"
-                        >
-                            <Command.Root class="bg-zinc-950 text-zinc-100">
-                                <Command.Input
-                                    placeholder="Search or type new..."
-                                    bind:value={searchProvider}
-                                />
-                                <Command.List>
-                                    <Command.Empty>
-                                        {#if searchProvider}
-                                            <div class="p-2">
-                                                <Button
-                                                    variant="ghost"
-                                                    class="w-full justify-start text-emerald-500 hover:text-emerald-400"
-                                                    onclick={() => {
-                                                        formData.provider =
-                                                            searchProvider;
-                                                        openProvider = false;
-                                                    }}
-                                                >
-                                                    <Plus
-                                                        class="mr-2 h-4 w-4"
-                                                    /> Create "{searchProvider}"
-                                                </Button>
-                                            </div>
-                                        {:else}
-                                            No provider found.
-                                        {/if}
-                                    </Command.Empty>
-                                    <Command.Group>
-                                        {#each providers as provider}
-                                            <Command.Item
-                                                value={provider}
-                                                onSelect={(currentValue) => {
-                                                    formData.provider =
-                                                        currentValue;
-                                                    openProvider = false;
-                                                }}
-                                                class="data-[selected=true]:bg-zinc-800 text-zinc-300 aria-selected:text-white"
-                                            >
-                                                <Check
-                                                    class={cn(
-                                                        "mr-2 h-4 w-4",
-                                                        formData.provider ===
-                                                            provider
-                                                            ? "opacity-100"
-                                                            : "opacity-0",
-                                                    )}
-                                                />
-                                                {provider}
-                                            </Command.Item>
-                                        {/each}
-                                    </Command.Group>
-                                </Command.List>
-                            </Command.Root>
-                        </Popover.Content>
-                    </Popover.Root>
+                    <Input
+                        id="provider"
+                        bind:value={formData.provider}
+                        list="provider-list"
+                        placeholder="Select or type provider..."
+                        class="bg-zinc-900 border-zinc-700"
+                    />
+                    <datalist id="provider-list">
+                        {#each providers as provider}
+                            <option value={provider}></option>
+                        {/each}
+                    </datalist>
                 </div>
                 <div class="grid gap-2">
                     <Label for="ordered_by" class="text-zinc-300"
@@ -321,20 +276,38 @@
             </div>
         </div>
 
-        <Dialog.Footer class="p-6 pt-4 border-t border-zinc-800">
-            <Button
-                variant="outline"
-                onclick={() => (isOpen = false)}
-                class="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
-                >Cancel</Button
-            >
-            <Button
-                onclick={handleSubmit}
-                disabled={isLoading}
-                class="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-                {isLoading ? "Saving..." : "Save Order"}
-            </Button>
-        </Dialog.Footer>
+        <div
+            class="p-6 pt-4 border-t border-zinc-800 flex justify-between items-center w-full shrink-0"
+        >
+            {#if order}
+                <Button
+                    variant="destructive"
+                    onclick={handleDelete}
+                    class="mr-auto"
+                >
+                    <Trash2 class="mr-2 h-4 w-4" /> Delete Order
+                </Button>
+            {:else}
+                <div></div>
+            {/if}
+
+            <div class="flex gap-2">
+                <Button
+                    variant="outline"
+                    onclick={() => (isOpen = false)}
+                    class="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                >
+                    Cancel
+                </Button>
+
+                <Button
+                    onclick={handleSubmit}
+                    disabled={isLoading}
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white"
+                >
+                    {isLoading ? "Saving..." : "Save Order"}
+                </Button>
+            </div>
+        </div>
     </Dialog.Content>
 </Dialog.Root>
