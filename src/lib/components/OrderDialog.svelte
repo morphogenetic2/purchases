@@ -164,7 +164,7 @@
             <div class="grid grid-cols-2 gap-6">
                 <div class="grid gap-2">
                     <Label for="sku" class="text-zinc-300"
-                        >SKU <span class="text-red-500">*</span></Label
+                        >Reference <span class="text-red-500">*</span></Label
                     >
                     <Input
                         id="sku"
