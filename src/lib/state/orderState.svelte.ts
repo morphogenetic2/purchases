@@ -183,13 +183,7 @@ export class OrderState {
         return { start, end, total };
     });
 
-    uniqueProviders = $derived.by(() => {
-        const providers = new Set<string>();
-        this.rawOrders.forEach((o) => {
-            if (o.provider) providers.add(o.provider);
-        });
-        return Array.from(providers).sort();
-    });
+
 
     // Grouping
     groupedOrders = $derived.by((): OrderGroup[] => {

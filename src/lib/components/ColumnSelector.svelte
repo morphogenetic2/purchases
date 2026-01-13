@@ -55,7 +55,7 @@
     <Popover.Content class="w-64 bg-zinc-950 border-zinc-800 p-0" align="end">
         <div class="p-4 border-b border-zinc-900">
             <h4 class="font-medium text-sm text-zinc-100">
-                Personlize Columns
+                Personalize Columns
             </h4>
             <p class="text-xs text-zinc-500">Drag to reorder, check to show.</p>
         </div>

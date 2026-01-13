@@ -4,23 +4,21 @@
     import { Input } from "$lib/components/ui/input";
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
-    import {
-        Pencil,
-        ChevronLeft,
-        ChevronRight,
-        X,
-        Layers,
-    } from "lucide-svelte";
+    import { ChevronLeft, ChevronRight, X, Layers } from "lucide-svelte";
     import { resizable } from "$lib/actions/resizable";
     import ColumnFilter from "$lib/components/ColumnFilter.svelte";
     import ColumnSelector from "$lib/components/ColumnSelector.svelte";
-    import EditableCell from "$lib/components/EditableCell.svelte";
+    import OrderRow from "$lib/components/OrderRow.svelte";
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import type {
         OrderState,
         GroupByOption,
     } from "$lib/state/orderState.svelte";
     import type { Order } from "$lib/types";
+
+    import { getStatusColor } from "$lib/utils";
+    import { supabase } from "$lib/supabaseClient";
+    import { invalidateAll } from "$app/navigation";
 
     const groupByOptions: { value: GroupByOption; label: string }[] = [
         { value: "none", label: "No Grouping" },
@@ -37,17 +35,16 @@
         onRevert: (id: string) => void;
     }>();
 
-    function getStatusColor(status: string) {
-        switch (status?.toLowerCase()) {
-            case "received":
-                return "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 border-emerald-500/20";
-            case "cancelled":
-                return "bg-red-500/15 text-red-500 hover:bg-red-500/25 border-red-500/20";
-            case "requested":
-            default:
-                // requested (and legacy ordered)
-                return "bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 border-amber-500/20";
+    async function handleCellUpdate(id: string, field: string, value: any) {
+        const { error } = await supabase
+            .from("orders")
+            .update({ [field]: value })
+            .eq("id", id);
+
+        if (error) {
+            throw error;
         }
+        await invalidateAll();
     }
 </script>
 
@@ -268,176 +265,14 @@
                             {/if}
 
                             {#each group.orders as order (order.id)}
-                                <Table.Row
-                                    class="border-zinc-800 hover:bg-zinc-800/30"
-                                >
-                                    {#each state.visibleColumns as col (col.id)}
-                                        {#if col.id === "date_formatted"}
-                                            <Table.Cell
-                                                class="font-mono text-zinc-300"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="order_date"
-                                                    value={order.order_date ||
-                                                        order.created_at}
-                                                    type="date"
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "description"}
-                                            <Table.Cell
-                                                class="max-w-[300px] overflow-hidden"
-                                            >
-                                                <div
-                                                    class="font-medium text-zinc-200 truncate"
-                                                >
-                                                    <EditableCell
-                                                        orderId={order.id}
-                                                        field="description"
-                                                        value={order.description}
-                                                        class="truncate block max-w-[280px]"
-                                                    />
-                                                </div>
-                                                <div
-                                                    class="text-xs text-zinc-500 font-mono mt-0.5"
-                                                >
-                                                    <EditableCell
-                                                        orderId={order.id}
-                                                        field="sku"
-                                                        value={order.sku}
-                                                        class="text-xs"
-                                                    />
-                                                </div>
-                                            </Table.Cell>
-                                        {:else if col.id === "provider"}
-                                            <Table.Cell
-                                                class="text-zinc-300 text-sm"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="provider"
-                                                    value={order.provider}
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "price_formatted"}
-                                            <Table.Cell
-                                                class="text-zinc-300 text-sm text-right font-mono"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="unit_price"
-                                                    value={order.unit_price}
-                                                    type="number"
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "ordered_by"}
-                                            <Table.Cell
-                                                class="text-zinc-300 text-sm"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="ordered_by"
-                                                    value={order.ordered_by}
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "project_code"}
-                                            <Table.Cell
-                                                class="text-zinc-400 font-mono text-xs"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="project_code"
-                                                    value={order.project_code}
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "po_number"}
-                                            <Table.Cell
-                                                class="text-zinc-400 font-mono text-xs"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="po_number"
-                                                    value={order.po_number}
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "quantity"}
-                                            <Table.Cell
-                                                class="text-center text-zinc-300"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="quantity"
-                                                    value={order.quantity}
-                                                    type="integer"
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "received_date"}
-                                            <Table.Cell
-                                                class="text-zinc-400 text-sm"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="received_date"
-                                                    value={order.received_date}
-                                                    type="date"
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "storage_location"}
-                                            <Table.Cell
-                                                class="text-zinc-200 text-sm"
-                                            >
-                                                <EditableCell
-                                                    orderId={order.id}
-                                                    field="storage_location"
-                                                    value={order.storage_location}
-                                                />
-                                            </Table.Cell>
-                                        {:else if col.id === "status"}
-                                            <Table.Cell>
-                                                <Badge
-                                                    variant="outline"
-                                                    class="{getStatusColor(
-                                                        order.status,
-                                                    )} border whitespace-nowrap {order.status ===
-                                                    'received'
-                                                        ? 'cursor-pointer hover:opacity-80'
-                                                        : ''}"
-                                                    onclick={() =>
-                                                        order.status ===
-                                                            "received" &&
-                                                        onRevert(order.id)}
-                                                >
-                                                    {order.status}
-                                                </Badge>
-                                            </Table.Cell>
-                                        {:else if col.id === "actions"}
-                                            <Table.Cell class="text-right">
-                                                {#if order.status !== "received" && order.status !== "cancelled"}
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onclick={() =>
-                                                            onReceive(order.id)}
-                                                        class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
-                                                    >
-                                                        Receive
-                                                    </Button>
-                                                {/if}
-                                                <Button
-                                                    size="sm"
-                                                    variant="ghost"
-                                                    class="h-7 w-7 p-0 ml-1 text-zinc-400 hover:text-white"
-                                                    onclick={() =>
-                                                        onEdit(order)}
-                                                >
-                                                    <Pencil
-                                                        class="h-3.5 w-3.5"
-                                                    />
-                                                </Button>
-                                            </Table.Cell>
-                                        {/if}
-                                    {/each}
-                                </Table.Row>
+                                <OrderRow
+                                    {order}
+                                    visibleColumns={state.visibleColumns}
+                                    {onEdit}
+                                    {onReceive}
+                                    {onRevert}
+                                    onUpdate={handleCellUpdate}
+                                />
                             {/each}
                         {/each}
                     {/if}

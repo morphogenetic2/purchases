@@ -1,20 +1,16 @@
 <script lang="ts">
     import { Input } from "$lib/components/ui/input";
-    import { supabase } from "$lib/supabaseClient";
-    import { invalidateAll } from "$app/navigation";
 
     let {
-        orderId,
-        field,
         value,
         type = "text",
         class: className = "",
+        onUpdate,
     } = $props<{
-        orderId: string;
-        field: string;
         value: string | number | null;
         type?: "text" | "number" | "integer" | "date";
         class?: string;
+        onUpdate: (newValue: string | number | null) => Promise<void>;
     }>();
 
     let isEditing = $state(false);
@@ -61,17 +57,7 @@
         isSaving = true;
 
         try {
-            const { error } = await supabase
-                .from("orders")
-                .update({ [field]: newValue })
-                .eq("id", orderId);
-
-            if (error) {
-                console.error("Error saving:", error);
-                alert("Failed to save: " + error.message);
-            } else {
-                await invalidateAll();
-            }
+            await onUpdate(newValue);
         } catch (err: any) {
             console.error("Error saving:", err);
             alert("Failed to save: " + err.message);

@@ -85,6 +85,6 @@
 <OrderDialog
     bind:isOpen={isSheetOpen}
     order={editingOrder}
-    providers={orderState.uniqueProviders}
+    providers={orderState.filterOptions.provider}
     onSave={() => invalidateAll()}
 />
