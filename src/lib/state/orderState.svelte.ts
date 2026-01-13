@@ -1,18 +1,42 @@
-import type { Order } from "$lib/types";
+import type { Order, Column } from "$lib/types";
 
 export class OrderState {
     rawOrders = $state<Order[]>([]);
     searchTerm = $state("");
-    sortDirection = $state("desc"); // desc = newer-to-older (default)
+    sortDirection = $state("desc");
+
+    columns = $state<Column[]>([
+        { id: "date_formatted", label: "Date", visible: true },
+        { id: "description", label: "Description", visible: true },
+        { id: "provider", label: "Provider", visible: true },
+        { id: "price_formatted", label: "Price", visible: true },
+        { id: "ordered_by", label: "Requester", visible: true },
+        { id: "project_code", label: "Project", visible: true },
+        { id: "po_number", label: "PO Num", visible: true },
+        { id: "quantity", label: "Qty", visible: true },
+        { id: "received_date", label: "Received", visible: true },
+        { id: "storage_location", label: "Location", visible: true },
+        { id: "status", label: "Status", visible: true },
+        { id: "actions", label: "Actions", visible: true },
+    ]);
+
     activeFilters = $state({
         requester: [] as string[],
         status: [] as string[],
         date: [] as string[],
+        provider: [] as string[],
     });
 
     constructor(orders: Order[] = []) {
         this.rawOrders = orders;
     }
+
+    visibleColumns = $derived(this.columns.filter(c => c.visible));
+
+    updateColumns(newColumns: Column[]) {
+        this.columns = newColumns;
+    }
+
 
     setOrders(orders: Order[]) {
         this.rawOrders = orders;
@@ -27,10 +51,12 @@ export class OrderState {
         const requesters = new Set<string>();
         const statuses = new Set<string>();
         const dates = new Set<string>();
+        const providers = new Set<string>();
 
         orders.forEach((o) => {
             if (o.ordered_by) requesters.add(o.ordered_by);
             if (o.status) statuses.add(o.status);
+            if (o.provider) providers.add(o.provider);
 
             const d = new Date(o.order_date || o.created_at);
             if (!isNaN(d.getTime())) dates.add(d.toLocaleDateString());
@@ -39,6 +65,7 @@ export class OrderState {
         return {
             requester: Array.from(requesters).sort(),
             status: Array.from(statuses).sort(),
+            provider: Array.from(providers).sort(),
             date: Array.from(dates).sort(
                 (a, b) => new Date(b).getTime() - new Date(a).getTime(),
             ),
@@ -67,6 +94,12 @@ export class OrderState {
                 if (
                     this.activeFilters.status.length > 0 &&
                     !this.activeFilters.status.includes(order.status)
+                )
+                    return false;
+
+                if (
+                    this.activeFilters.provider.length > 0 &&
+                    !this.activeFilters.provider.includes(order.provider)
                 )
                     return false;
 

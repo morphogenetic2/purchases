@@ -15,3 +15,9 @@ export interface Order {
     storage_location?: string;
     is_received?: boolean;
 }
+
+export interface Column {
+    id: keyof Order | "actions" | "price_formatted" | "date_formatted"; // Extended keys for display
+    label: string;
+    visible: boolean;
+}
