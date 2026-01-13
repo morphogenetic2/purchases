@@ -1,5 +1,12 @@
 import type { Order, Column } from "$lib/types";
-import { formatDateForFilter } from "$lib/utils";
+import { formatDateForFilter, formatDate } from "$lib/utils";
+
+export type GroupByOption = 'none' | 'date' | 'provider';
+export interface OrderGroup {
+    key: string;
+    label: string;
+    orders: Order[];
+}
 
 const STORAGE_KEY = 'order-table-columns';
 
@@ -58,6 +65,7 @@ export class OrderState {
     rawOrders = $state<Order[]>([]);
     searchTerm = $state("");
     sortDirection = $state("desc");
+    groupBy = $state<GroupByOption>('none');
 
     columns = $state<Column[]>(loadColumnsFromStorage());
 
@@ -91,6 +99,10 @@ export class OrderState {
 
     toggleSort() {
         this.sortDirection = this.sortDirection === "asc" ? "desc" : "asc";
+    }
+
+    setGroupBy(option: GroupByOption) {
+        this.groupBy = option;
     }
 
     filterOptions = $derived.by(() => {
@@ -181,5 +193,60 @@ export class OrderState {
             if (o.provider) providers.add(o.provider);
         });
         return Array.from(providers).sort();
+    });
+
+    groupedOrders = $derived.by((): OrderGroup[] => {
+        const orders = this.filteredOrders;
+
+        if (this.groupBy === 'none') {
+            return [{ key: 'all', label: '', orders }];
+        }
+
+        const groups = new Map<string, Order[]>();
+
+        orders.forEach(order => {
+            let key: string;
+            let label: string;
+
+            if (this.groupBy === 'date') {
+                const dateStr = formatDate(order.order_date || order.created_at);
+                key = dateStr;
+                label = dateStr;
+            } else {
+                // provider
+                key = order.provider || 'Unknown';
+                label = order.provider || 'Unknown Provider';
+            }
+
+            if (!groups.has(key)) {
+                groups.set(key, []);
+            }
+            groups.get(key)!.push(order);
+        });
+
+        // Convert to array and sort groups
+        const result: OrderGroup[] = [];
+        groups.forEach((groupOrders, key) => {
+            result.push({
+                key,
+                label: key,
+                orders: groupOrders
+            });
+        });
+
+        // Sort groups
+        if (this.groupBy === 'date') {
+            // For dates, sort by the first order's date in each group
+            result.sort((a, b) => {
+                const dateA = new Date(a.orders[0]?.order_date || a.orders[0]?.created_at || 0).getTime();
+                const dateB = new Date(b.orders[0]?.order_date || b.orders[0]?.created_at || 0).getTime();
+                return this.sortDirection === 'desc' ? dateB - dateA : dateA - dateB;
+            });
+        } else {
+            // For provider, sort alphabetically
+            result.sort((a, b) => a.label.localeCompare(b.label));
+        }
+
+        return result;
     });
 }
