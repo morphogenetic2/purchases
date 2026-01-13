@@ -1,64 +1,11 @@
 import type { Order, Column } from "$lib/types";
-import { formatDateForFilter, formatDate } from "$lib/utils";
 
-export type GroupByOption = 'none' | 'date' | 'provider';
+export type GroupByOption = 'none' | 'date' | 'provider' | 'requester' | 'status';
+
 export interface OrderGroup {
     key: string;
     label: string;
     orders: Order[];
-}
-
-const STORAGE_KEY = 'order-table-columns';
-
-const DEFAULT_COLUMNS: Column[] = [
-    { id: "date_formatted", label: "Date", visible: true },
-    { id: "description", label: "Description", visible: true },
-    { id: "provider", label: "Provider", visible: true },
-    { id: "price_formatted", label: "Price", visible: true },
-    { id: "ordered_by", label: "Requester", visible: true },
-    { id: "project_code", label: "Project", visible: true },
-    { id: "po_number", label: "PO Num", visible: true },
-    { id: "quantity", label: "Qty", visible: true },
-    { id: "received_date", label: "Received", visible: true },
-    { id: "storage_location", label: "Location", visible: true },
-    { id: "status", label: "Status", visible: true },
-    { id: "actions", label: "Actions", visible: true },
-];
-
-function loadColumnsFromStorage(): Column[] {
-    if (typeof window === 'undefined') return DEFAULT_COLUMNS;
-
-    try {
-        const stored = localStorage.getItem(STORAGE_KEY);
-        if (!stored) return DEFAULT_COLUMNS;
-
-        const parsed = JSON.parse(stored) as Column[];
-
-        // Merge with defaults to handle any new columns added in code updates
-        const storedIds = new Set(parsed.map(c => c.id));
-        const mergedColumns = [...parsed];
-
-        // Add any new columns from defaults that aren't in storage
-        DEFAULT_COLUMNS.forEach(defaultCol => {
-            if (!storedIds.has(defaultCol.id)) {
-                mergedColumns.push(defaultCol);
-            }
-        });
-
-        return mergedColumns;
-    } catch {
-        return DEFAULT_COLUMNS;
-    }
-}
-
-function saveColumnsToStorage(columns: Column[]): void {
-    if (typeof window === 'undefined') return;
-
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(columns));
-    } catch {
-        // Ignore storage errors (e.g., quota exceeded)
-    }
 }
 
 export class OrderState {
@@ -67,7 +14,24 @@ export class OrderState {
     sortDirection = $state("desc");
     groupBy = $state<GroupByOption>('none');
 
-    columns = $state<Column[]>(loadColumnsFromStorage());
+    // Pagination
+    currentPage = $state(1);
+    pageSize = $state(50);
+
+    columns = $state<Column[]>([
+        { id: "date_formatted", label: "Date", visible: true },
+        { id: "description", label: "Description", visible: true },
+        { id: "provider", label: "Provider", visible: true },
+        { id: "price_formatted", label: "Price", visible: true },
+        { id: "ordered_by", label: "Requester", visible: true },
+        { id: "project_code", label: "Project", visible: true },
+        { id: "po_number", label: "PO Num", visible: true },
+        { id: "quantity", label: "Qty", visible: true },
+        { id: "received_date", label: "Received", visible: true },
+        { id: "storage_location", label: "Location", visible: true },
+        { id: "status", label: "Status", visible: true },
+        { id: "actions", label: "Actions", visible: true },
+    ]);
 
     activeFilters = $state({
         requester: [] as string[],
@@ -84,12 +48,6 @@ export class OrderState {
 
     updateColumns(newColumns: Column[]) {
         this.columns = newColumns;
-        saveColumnsToStorage(newColumns);
-    }
-
-    resetColumns() {
-        this.columns = [...DEFAULT_COLUMNS];
-        saveColumnsToStorage(DEFAULT_COLUMNS);
     }
 
 
@@ -103,6 +61,26 @@ export class OrderState {
 
     setGroupBy(option: GroupByOption) {
         this.groupBy = option;
+        this.currentPage = 1;
+    }
+
+    // Pagination methods
+    setPage(page: number) {
+        const maxPage = Math.max(1, Math.ceil(this.filteredOrders.length / this.pageSize));
+        this.currentPage = Math.min(Math.max(1, page), maxPage);
+    }
+
+    nextPage() {
+        this.setPage(this.currentPage + 1);
+    }
+
+    prevPage() {
+        this.setPage(this.currentPage - 1);
+    }
+
+    setPageSize(size: number) {
+        this.pageSize = size;
+        this.currentPage = 1; // Reset to first page when changing page size
     }
 
     filterOptions = $derived.by(() => {
@@ -118,7 +96,7 @@ export class OrderState {
             if (o.provider) providers.add(o.provider);
 
             const d = new Date(o.order_date || o.created_at);
-            if (!isNaN(d.getTime())) dates.add(formatDateForFilter(d));
+            if (!isNaN(d.getTime())) dates.add(d.toLocaleDateString());
         });
 
         return {
@@ -132,6 +110,7 @@ export class OrderState {
     });
 
     filteredOrders = $derived.by(() => {
+        // Reset to page 1 when filters change is handled by the effect below
         return (this.rawOrders || [])
             .filter((order) => {
                 // 1. Text Search
@@ -163,9 +142,9 @@ export class OrderState {
                     return false;
 
                 if (this.activeFilters.date.length > 0) {
-                    const d = formatDateForFilter(new Date(
+                    const d = new Date(
                         order.order_date || order.created_at,
-                    ));
+                    ).toLocaleDateString();
                     if (!this.activeFilters.date.includes(d)) return false;
                 }
 
@@ -187,6 +166,23 @@ export class OrderState {
             });
     });
 
+    // Pagination derived properties
+    totalPages = $derived(Math.max(1, Math.ceil(this.filteredOrders.length / this.pageSize)));
+
+    paginatedOrders = $derived.by(() => {
+        const start = (this.currentPage - 1) * this.pageSize;
+        const end = start + this.pageSize;
+        return this.filteredOrders.slice(start, end);
+    });
+
+    // Page info for display
+    pageInfo = $derived.by(() => {
+        const total = this.filteredOrders.length;
+        const start = total === 0 ? 0 : (this.currentPage - 1) * this.pageSize + 1;
+        const end = Math.min(this.currentPage * this.pageSize, total);
+        return { start, end, total };
+    });
+
     uniqueProviders = $derived.by(() => {
         const providers = new Set<string>();
         this.rawOrders.forEach((o) => {
@@ -195,8 +191,9 @@ export class OrderState {
         return Array.from(providers).sort();
     });
 
+    // Grouping
     groupedOrders = $derived.by((): OrderGroup[] => {
-        const orders = this.filteredOrders;
+        const orders = this.paginatedOrders;
 
         if (this.groupBy === 'none') {
             return [{ key: 'all', label: '', orders }];
@@ -208,14 +205,31 @@ export class OrderState {
             let key: string;
             let label: string;
 
-            if (this.groupBy === 'date') {
-                const dateStr = formatDate(order.order_date || order.created_at);
-                key = dateStr;
-                label = dateStr;
-            } else {
-                // provider
-                key = order.provider || 'Unknown';
-                label = order.provider || 'Unknown Provider';
+            switch (this.groupBy) {
+                case 'date': {
+                    const dateStr = new Date(order.order_date || order.created_at).toLocaleDateString();
+                    key = dateStr;
+                    label = dateStr;
+                    break;
+                }
+                case 'provider': {
+                    key = order.provider || 'Unknown';
+                    label = order.provider || 'Unknown Provider';
+                    break;
+                }
+                case 'requester': {
+                    key = order.ordered_by || 'Unknown';
+                    label = order.ordered_by || 'Unknown Requester';
+                    break;
+                }
+                case 'status': {
+                    key = order.status || 'unknown';
+                    label = (order.status || 'Unknown').charAt(0).toUpperCase() + (order.status || 'unknown').slice(1);
+                    break;
+                }
+                default:
+                    key = 'other';
+                    label = 'Other';
             }
 
             if (!groups.has(key)) {
@@ -236,14 +250,12 @@ export class OrderState {
 
         // Sort groups
         if (this.groupBy === 'date') {
-            // For dates, sort by the first order's date in each group
             result.sort((a, b) => {
                 const dateA = new Date(a.orders[0]?.order_date || a.orders[0]?.created_at || 0).getTime();
                 const dateB = new Date(b.orders[0]?.order_date || b.orders[0]?.created_at || 0).getTime();
                 return this.sortDirection === 'desc' ? dateB - dateA : dateA - dateB;
             });
         } else {
-            // For provider, sort alphabetically
             result.sort((a, b) => a.label.localeCompare(b.label));
         }
 

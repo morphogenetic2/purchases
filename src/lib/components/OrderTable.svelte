@@ -4,9 +4,14 @@
     import { Input } from "$lib/components/ui/input";
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
-    import { Pencil, Loader2, X, Layers } from "lucide-svelte";
+    import {
+        Pencil,
+        ChevronLeft,
+        ChevronRight,
+        X,
+        Layers,
+    } from "lucide-svelte";
     import { resizable } from "$lib/actions/resizable";
-    import { formatDate } from "$lib/utils";
     import ColumnFilter from "$lib/components/ColumnFilter.svelte";
     import ColumnSelector from "$lib/components/ColumnSelector.svelte";
     import EditableCell from "$lib/components/EditableCell.svelte";
@@ -21,20 +26,15 @@
         { value: "none", label: "No Grouping" },
         { value: "date", label: "Group by Date" },
         { value: "provider", label: "Group by Provider" },
+        { value: "requester", label: "Group by Requester" },
+        { value: "status", label: "Group by Status" },
     ];
 
-    let {
-        state,
-        onEdit,
-        onReceive,
-        onRevert,
-        loadingOrderId = null,
-    } = $props<{
+    let { state, onEdit, onReceive, onRevert } = $props<{
         state: OrderState;
         onEdit: (order: Order) => void;
         onReceive: (id: string) => void;
         onRevert: (id: string) => void;
-        loadingOrderId?: string | null;
     }>();
 
     function getStatusColor(status: string) {
@@ -91,7 +91,11 @@
                                 ? "Group"
                                 : state.groupBy === "date"
                                   ? "By Date"
-                                  : "By Provider"}
+                                  : state.groupBy === "provider"
+                                    ? "By Provider"
+                                    : state.groupBy === "requester"
+                                      ? "By Requester"
+                                      : "By Status"}
                         </Button>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content class="bg-zinc-950 border-zinc-800">
@@ -234,7 +238,7 @@
                         </Table.Row>
                     {:else}
                         {#each state.groupedOrders as group (group.key)}
-                            <!-- Group Header (only show if grouping is active) -->
+                            <!-- Group Header -->
                             {#if state.groupBy !== "none"}
                                 <Table.Row
                                     class="bg-zinc-800/50 border-zinc-700 hover:bg-zinc-800/50"
@@ -263,7 +267,6 @@
                                 </Table.Row>
                             {/if}
 
-                            <!-- Orders in this group -->
                             {#each group.orders as order (order.id)}
                                 <Table.Row
                                     class="border-zinc-800 hover:bg-zinc-800/30"
@@ -273,23 +276,37 @@
                                             <Table.Cell
                                                 class="font-mono text-zinc-300"
                                             >
-                                                {formatDate(
-                                                    order.order_date ||
-                                                        order.created_at,
-                                                )}
+                                                <EditableCell
+                                                    orderId={order.id}
+                                                    field="order_date"
+                                                    value={order.order_date ||
+                                                        order.created_at}
+                                                    type="date"
+                                                />
                                             </Table.Cell>
                                         {:else if col.id === "description"}
-                                            <Table.Cell class="max-w-[300px]">
+                                            <Table.Cell
+                                                class="max-w-[300px] overflow-hidden"
+                                            >
                                                 <div
                                                     class="font-medium text-zinc-200 truncate"
-                                                    title={order.description}
                                                 >
-                                                    {order.description}
+                                                    <EditableCell
+                                                        orderId={order.id}
+                                                        field="description"
+                                                        value={order.description}
+                                                        class="truncate block max-w-[280px]"
+                                                    />
                                                 </div>
                                                 <div
                                                     class="text-xs text-zinc-500 font-mono mt-0.5"
                                                 >
-                                                    {order.sku || ""}
+                                                    <EditableCell
+                                                        orderId={order.id}
+                                                        field="sku"
+                                                        value={order.sku}
+                                                        class="text-xs"
+                                                    />
                                                 </div>
                                             </Table.Cell>
                                         {:else if col.id === "provider"}
@@ -317,7 +334,11 @@
                                             <Table.Cell
                                                 class="text-zinc-300 text-sm"
                                             >
-                                                {order.ordered_by}
+                                                <EditableCell
+                                                    orderId={order.id}
+                                                    field="ordered_by"
+                                                    value={order.ordered_by}
+                                                />
                                             </Table.Cell>
                                         {:else if col.id === "project_code"}
                                             <Table.Cell
@@ -347,22 +368,19 @@
                                                     orderId={order.id}
                                                     field="quantity"
                                                     value={order.quantity}
-                                                    type="number"
+                                                    type="integer"
                                                 />
                                             </Table.Cell>
                                         {:else if col.id === "received_date"}
                                             <Table.Cell
                                                 class="text-zinc-400 text-sm"
                                             >
-                                                {#if order.received_date}
-                                                    {formatDate(
-                                                        order.received_date,
-                                                    )}
-                                                {:else}
-                                                    <span class="text-zinc-600"
-                                                        >-</span
-                                                    >
-                                                {/if}
+                                                <EditableCell
+                                                    orderId={order.id}
+                                                    field="received_date"
+                                                    value={order.received_date}
+                                                    type="date"
+                                                />
                                             </Table.Cell>
                                         {:else if col.id === "storage_location"}
                                             <Table.Cell
@@ -400,15 +418,8 @@
                                                         variant="outline"
                                                         onclick={() =>
                                                             onReceive(order.id)}
-                                                        disabled={loadingOrderId ===
-                                                            order.id}
-                                                        class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-transparent disabled:opacity-50"
+                                                        class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
                                                     >
-                                                        {#if loadingOrderId === order.id}
-                                                            <Loader2
-                                                                class="h-3 w-3 animate-spin mr-1"
-                                                            />
-                                                        {/if}
                                                         Receive
                                                     </Button>
                                                 {/if}
@@ -433,5 +444,64 @@
                 </Table.Body>
             </Table.Root>
         </div>
+
+        <!-- Pagination Footer -->
+        {#if state.filteredOrders.length > 0}
+            <div
+                class="flex items-center justify-between px-4 py-3 border-t border-zinc-800"
+            >
+                <div class="text-sm text-zinc-500">
+                    Showing {state.pageInfo.start} to {state.pageInfo.end} of {state
+                        .pageInfo.total} orders
+                </div>
+                <div class="flex items-center gap-4">
+                    <!-- Page Size Selector -->
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-zinc-500">Per page:</span>
+                        <select
+                            class="bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                            value={state.pageSize}
+                            onchange={(e) =>
+                                state.setPageSize(
+                                    Number(e.currentTarget.value),
+                                )}
+                        >
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                            <option value={100}>100</option>
+                            <option value={250}>250</option>
+                            <option value={500}>500</option>
+                            <option value={1000}>1000</option>
+                            <option value={10000}>All</option>
+                        </select>
+                    </div>
+
+                    <!-- Page Navigation -->
+                    <div class="flex items-center gap-1">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 w-8 p-0 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 disabled:opacity-50"
+                            disabled={state.currentPage <= 1}
+                            onclick={() => state.prevPage()}
+                        >
+                            <ChevronLeft class="h-4 w-4" />
+                        </Button>
+                        <span class="text-sm text-zinc-300 px-3">
+                            Page {state.currentPage} of {state.totalPages}
+                        </span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            class="h-8 w-8 p-0 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 disabled:opacity-50"
+                            disabled={state.currentPage >= state.totalPages}
+                            onclick={() => state.nextPage()}
+                        >
+                            <ChevronRight class="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        {/if}
     </Card.Content>
 </Card.Root>

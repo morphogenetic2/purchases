@@ -13,7 +13,7 @@
         orderId: string;
         field: string;
         value: string | number | null;
-        type?: "text" | "number";
+        type?: "text" | "number" | "integer" | "date";
         class?: string;
     }>();
 
@@ -39,14 +39,17 @@
         if (isSaving) return;
 
         // Check if value actually changed
-        const newValue =
-            type === "number"
-                ? editValue === ""
-                    ? null
-                    : parseFloat(editValue)
-                : editValue.trim() === ""
-                  ? null
-                  : editValue.trim();
+        let newValue: string | number | null;
+        if (type === "number") {
+            newValue = editValue === "" ? null : parseFloat(editValue);
+        } else if (type === "integer") {
+            newValue =
+                editValue === "" ? null : Math.max(0, parseInt(editValue, 10));
+        } else if (type === "date") {
+            newValue = editValue.trim() === "" ? null : editValue.trim();
+        } else {
+            newValue = editValue.trim() === "" ? null : editValue.trim();
+        }
 
         const oldValue = value;
 
@@ -101,13 +104,31 @@
             }
         }, 100);
     }
+
+    // Format display value
+    function getDisplayValue(): string {
+        if (value === null || value === undefined || value === "") {
+            return "-";
+        }
+        if (type === "date" && typeof value === "string") {
+            return new Date(value).toLocaleDateString();
+        }
+        if (type === "number" && typeof value === "number") {
+            return value.toFixed(2);
+        }
+        if (type === "integer" && typeof value === "number") {
+            return String(Math.floor(value));
+        }
+        return String(value);
+    }
 </script>
 
 {#if isEditing}
     <Input
         bind:ref={inputRef}
-        {type}
-        step={type === "number" ? "0.01" : undefined}
+        type={type === "date" ? "date" : type === "integer" ? "number" : type}
+        step={type === "number" ? "0.01" : type === "integer" ? "1" : undefined}
+        min={type === "integer" ? "0" : undefined}
         value={editValue}
         oninput={(e) => (editValue = e.currentTarget.value)}
         onkeydown={handleKeydown}
@@ -128,8 +149,8 @@
         role="button"
         tabindex="0"
         class="cursor-text hover:bg-zinc-800/50 px-1 py-0.5 -mx-1 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-emerald-500/50 {className}"
-        title="Double-click to edit"
+        title={String(value ?? "") || "Double-click to edit"}
     >
-        {value ?? "-"}
+        {getDisplayValue()}
     </span>
 {/if}
