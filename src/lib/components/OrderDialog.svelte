@@ -4,8 +4,6 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
-    import { cn } from "$lib/utils";
-    import { supabase } from "$lib/supabaseClient";
     import { orderService } from "$lib/services/orderService";
     import { Trash2 } from "lucide-svelte";
 
@@ -17,8 +15,6 @@
     } = $props();
 
     let isLoading = $state(false);
-    let openProvider = $state(false);
-    let searchProvider = $state("");
 
     let formData = $state({
         description: "",
@@ -86,6 +82,7 @@
         isLoading = true;
         try {
             const dataToSave = {
+                ...(order?.id && { id: order.id }),
                 ...formData,
                 received_date: formData.received_date
                     ? formData.received_date
@@ -97,12 +94,7 @@
                     order?.order_date || new Date().toISOString().split("T")[0],
             };
 
-            const { error } = order
-                ? await supabase
-                      .from("orders")
-                      .update(dataToSave)
-                      .eq("id", order.id)
-                : await supabase.from("orders").insert([dataToSave]);
+            const { error } = await orderService.upsertOrder(dataToSave);
 
             if (error) throw error;
 

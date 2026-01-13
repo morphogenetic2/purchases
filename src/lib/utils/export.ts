@@ -1,5 +1,6 @@
 import * as XLSX from "xlsx";
 import type { Order } from "$lib/types";
+import { formatDate } from "$lib/utils";
 
 export function exportOrdersToExcel(orders: Order[]) {
     if (orders.length === 0) {
@@ -8,9 +9,7 @@ export function exportOrdersToExcel(orders: Order[]) {
     }
 
     const exportData = orders.map((order) => ({
-        Date: new Date(
-            order.order_date || order.created_at || "",
-        ).toLocaleDateString(),
+        Date: formatDate(order.order_date || order.created_at),
         Provider: order.provider,
         Reference: order.sku,
         Description: order.description,

@@ -4,18 +4,27 @@
     import { Input } from "$lib/components/ui/input";
     import { Button } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
-    import { Pencil } from "lucide-svelte";
+    import { Pencil, Loader2, X } from "lucide-svelte";
     import { resizable } from "$lib/actions/resizable";
+    import { formatDate } from "$lib/utils";
     import ColumnFilter from "$lib/components/ColumnFilter.svelte";
     import ColumnSelector from "$lib/components/ColumnSelector.svelte";
+    import EditableCell from "$lib/components/EditableCell.svelte";
     import type { OrderState } from "$lib/state/orderState.svelte";
     import type { Order } from "$lib/types";
 
-    let { state, onEdit, onReceive, onRevert } = $props<{
+    let {
+        state,
+        onEdit,
+        onReceive,
+        onRevert,
+        loadingOrderId = null,
+    } = $props<{
         state: OrderState;
         onEdit: (order: Order) => void;
         onReceive: (id: string) => void;
         onRevert: (id: string) => void;
+        loadingOrderId?: string | null;
     }>();
 
     function getStatusColor(status: string) {
@@ -37,13 +46,23 @@
         <div class="flex items-center justify-between">
             <Card.Title>Orders</Card.Title>
             <div class="flex items-center gap-2">
-                <div class="w-72">
+                <div class="w-72 relative">
                     <Input
                         type="search"
                         placeholder="Search orders..."
                         bind:value={state.searchTerm}
-                        class="bg-zinc-950 border-zinc-700 text-zinc-100"
+                        class="bg-zinc-950 border-zinc-700 text-zinc-100 pr-8"
                     />
+                    {#if state.searchTerm}
+                        <button
+                            type="button"
+                            onclick={() => (state.searchTerm = "")}
+                            class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-zinc-200 transition-colors rounded-sm hover:bg-zinc-800"
+                            title="Clear search"
+                        >
+                            <X class="h-4 w-4" />
+                        </button>
+                    {/if}
                 </div>
                 <ColumnSelector {state} />
             </div>
@@ -173,10 +192,10 @@
                                         <Table.Cell
                                             class="font-mono text-zinc-300"
                                         >
-                                            {new Date(
+                                            {formatDate(
                                                 order.order_date ||
                                                     order.created_at,
-                                            ).toLocaleDateString()}
+                                            )}
                                         </Table.Cell>
                                     {:else if col.id === "description"}
                                         <Table.Cell class="max-w-[300px]">
@@ -196,15 +215,22 @@
                                         <Table.Cell
                                             class="text-zinc-300 text-sm"
                                         >
-                                            {order.provider}
+                                            <EditableCell
+                                                orderId={order.id}
+                                                field="provider"
+                                                value={order.provider}
+                                            />
                                         </Table.Cell>
                                     {:else if col.id === "price_formatted"}
                                         <Table.Cell
                                             class="text-zinc-300 text-sm text-right font-mono"
                                         >
-                                            {order.unit_price
-                                                ? order.unit_price.toFixed(2)
-                                                : "-"}
+                                            <EditableCell
+                                                orderId={order.id}
+                                                field="unit_price"
+                                                value={order.unit_price}
+                                                type="number"
+                                            />
                                         </Table.Cell>
                                     {:else if col.id === "ordered_by"}
                                         <Table.Cell
@@ -215,29 +241,42 @@
                                     {:else if col.id === "project_code"}
                                         <Table.Cell
                                             class="text-zinc-400 font-mono text-xs"
-                                            >{order.project_code ||
-                                                "-"}</Table.Cell
                                         >
+                                            <EditableCell
+                                                orderId={order.id}
+                                                field="project_code"
+                                                value={order.project_code}
+                                            />
+                                        </Table.Cell>
                                     {:else if col.id === "po_number"}
                                         <Table.Cell
                                             class="text-zinc-400 font-mono text-xs"
-                                            >{order.po_number ||
-                                                "-"}</Table.Cell
                                         >
+                                            <EditableCell
+                                                orderId={order.id}
+                                                field="po_number"
+                                                value={order.po_number}
+                                            />
+                                        </Table.Cell>
                                     {:else if col.id === "quantity"}
                                         <Table.Cell
                                             class="text-center text-zinc-300"
                                         >
-                                            {order.quantity}
+                                            <EditableCell
+                                                orderId={order.id}
+                                                field="quantity"
+                                                value={order.quantity}
+                                                type="number"
+                                            />
                                         </Table.Cell>
                                     {:else if col.id === "received_date"}
                                         <Table.Cell
                                             class="text-zinc-400 text-sm"
                                         >
                                             {#if order.received_date}
-                                                {new Date(
+                                                {formatDate(
                                                     order.received_date,
-                                                ).toLocaleDateString()}
+                                                )}
                                             {:else}
                                                 <span class="text-zinc-600"
                                                     >-</span
@@ -248,7 +287,11 @@
                                         <Table.Cell
                                             class="text-zinc-200 text-sm"
                                         >
-                                            {order.storage_location || "-"}
+                                            <EditableCell
+                                                orderId={order.id}
+                                                field="storage_location"
+                                                value={order.storage_location}
+                                            />
                                         </Table.Cell>
                                     {:else if col.id === "status"}
                                         <Table.Cell>
@@ -276,8 +319,15 @@
                                                     variant="outline"
                                                     onclick={() =>
                                                         onReceive(order.id)}
-                                                    class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
+                                                    disabled={loadingOrderId ===
+                                                        order.id}
+                                                    class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-transparent disabled:opacity-50"
                                                 >
+                                                    {#if loadingOrderId === order.id}
+                                                        <Loader2
+                                                            class="h-3 w-3 animate-spin mr-1"
+                                                        />
+                                                    {/if}
                                                     Receive
                                                 </Button>
                                             {/if}

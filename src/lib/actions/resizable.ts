@@ -6,10 +6,12 @@ export function resizable(node: HTMLElement) {
 
     let startX = 0;
     let startWidth = 0;
+    let isResizing = false;
 
     function onMouseDown(e: MouseEvent) {
         startX = e.clientX;
         startWidth = node.offsetWidth;
+        isResizing = true;
 
         document.addEventListener('mousemove', onMouseMove);
         document.addEventListener('mouseup', onMouseUp);
@@ -28,6 +30,7 @@ export function resizable(node: HTMLElement) {
     }
 
     function onMouseUp() {
+        isResizing = false;
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
 
@@ -40,6 +43,12 @@ export function resizable(node: HTMLElement) {
     return {
         destroy() {
             handle.removeEventListener('mousedown', onMouseDown);
+            // Clean up document listeners if destroyed mid-resize
+            if (isResizing) {
+                document.removeEventListener('mousemove', onMouseMove);
+                document.removeEventListener('mouseup', onMouseUp);
+                document.body.style.cursor = '';
+            }
             handle.remove();
         }
     };

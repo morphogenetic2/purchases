@@ -1,24 +1,65 @@
 import type { Order, Column } from "$lib/types";
+import { formatDateForFilter } from "$lib/utils";
+
+const STORAGE_KEY = 'order-table-columns';
+
+const DEFAULT_COLUMNS: Column[] = [
+    { id: "date_formatted", label: "Date", visible: true },
+    { id: "description", label: "Description", visible: true },
+    { id: "provider", label: "Provider", visible: true },
+    { id: "price_formatted", label: "Price", visible: true },
+    { id: "ordered_by", label: "Requester", visible: true },
+    { id: "project_code", label: "Project", visible: true },
+    { id: "po_number", label: "PO Num", visible: true },
+    { id: "quantity", label: "Qty", visible: true },
+    { id: "received_date", label: "Received", visible: true },
+    { id: "storage_location", label: "Location", visible: true },
+    { id: "status", label: "Status", visible: true },
+    { id: "actions", label: "Actions", visible: true },
+];
+
+function loadColumnsFromStorage(): Column[] {
+    if (typeof window === 'undefined') return DEFAULT_COLUMNS;
+
+    try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) return DEFAULT_COLUMNS;
+
+        const parsed = JSON.parse(stored) as Column[];
+
+        // Merge with defaults to handle any new columns added in code updates
+        const storedIds = new Set(parsed.map(c => c.id));
+        const mergedColumns = [...parsed];
+
+        // Add any new columns from defaults that aren't in storage
+        DEFAULT_COLUMNS.forEach(defaultCol => {
+            if (!storedIds.has(defaultCol.id)) {
+                mergedColumns.push(defaultCol);
+            }
+        });
+
+        return mergedColumns;
+    } catch {
+        return DEFAULT_COLUMNS;
+    }
+}
+
+function saveColumnsToStorage(columns: Column[]): void {
+    if (typeof window === 'undefined') return;
+
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(columns));
+    } catch {
+        // Ignore storage errors (e.g., quota exceeded)
+    }
+}
 
 export class OrderState {
     rawOrders = $state<Order[]>([]);
     searchTerm = $state("");
     sortDirection = $state("desc");
 
-    columns = $state<Column[]>([
-        { id: "date_formatted", label: "Date", visible: true },
-        { id: "description", label: "Description", visible: true },
-        { id: "provider", label: "Provider", visible: true },
-        { id: "price_formatted", label: "Price", visible: true },
-        { id: "ordered_by", label: "Requester", visible: true },
-        { id: "project_code", label: "Project", visible: true },
-        { id: "po_number", label: "PO Num", visible: true },
-        { id: "quantity", label: "Qty", visible: true },
-        { id: "received_date", label: "Received", visible: true },
-        { id: "storage_location", label: "Location", visible: true },
-        { id: "status", label: "Status", visible: true },
-        { id: "actions", label: "Actions", visible: true },
-    ]);
+    columns = $state<Column[]>(loadColumnsFromStorage());
 
     activeFilters = $state({
         requester: [] as string[],
@@ -35,6 +76,12 @@ export class OrderState {
 
     updateColumns(newColumns: Column[]) {
         this.columns = newColumns;
+        saveColumnsToStorage(newColumns);
+    }
+
+    resetColumns() {
+        this.columns = [...DEFAULT_COLUMNS];
+        saveColumnsToStorage(DEFAULT_COLUMNS);
     }
 
 
@@ -59,7 +106,7 @@ export class OrderState {
             if (o.provider) providers.add(o.provider);
 
             const d = new Date(o.order_date || o.created_at);
-            if (!isNaN(d.getTime())) dates.add(d.toLocaleDateString());
+            if (!isNaN(d.getTime())) dates.add(formatDateForFilter(d));
         });
 
         return {
@@ -104,9 +151,9 @@ export class OrderState {
                     return false;
 
                 if (this.activeFilters.date.length > 0) {
-                    const d = new Date(
+                    const d = formatDateForFilter(new Date(
                         order.order_date || order.created_at,
-                    ).toLocaleDateString();
+                    ));
                     if (!this.activeFilters.date.includes(d)) return false;
                 }
 

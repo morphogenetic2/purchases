@@ -1,6 +1,7 @@
 <script lang="ts">
     import * as XLSX from "xlsx";
     import { supabase } from "$lib/supabaseClient";
+    import { invalidateAll } from "$app/navigation";
     import { Upload } from "lucide-svelte";
     import { Button } from "$lib/components/ui/button";
     import { Checkbox } from "$lib/components/ui/checkbox";
@@ -195,12 +196,12 @@
 
                 const { error } = await supabase
                     .from("orders")
-                    .upsert(validRows);
+                    .insert(validRows);
 
                 if (error) throw error;
 
                 alert("Success!");
-                window.location.reload();
+                await invalidateAll();
             } catch (err: any) {
                 console.error("Upload Error:", err);
                 alert("Error: " + (err.message || "Unknown error occurred"));

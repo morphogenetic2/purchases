@@ -2,7 +2,6 @@
     import { Button } from "$lib/components/ui/button";
     import { Plus, Download } from "lucide-svelte";
     import ExcelIngestor from "$lib/components/ExcelIngestor.svelte";
-    import { orderService } from "$lib/services/orderService";
     import WipeDbDialog from "./WipeDbDialog.svelte";
 
     let { onExport, onNewOrder, onWipe } = $props<{
