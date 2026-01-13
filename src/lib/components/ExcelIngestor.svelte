@@ -148,7 +148,7 @@
 
                     // Force New Order overrides
                     if (forceNew) {
-                        newRow.status = "ordered";
+                        newRow.status = "requested";
                         newRow.is_received = false;
                         newRow.received_date = null;
                         // Removing ID is usually implicit since we construct newRow from scratch

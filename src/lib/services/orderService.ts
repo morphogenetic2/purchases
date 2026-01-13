@@ -17,7 +17,7 @@ export const orderService = {
         return await supabase
             .from("orders")
             .update({
-                status: "ordered",
+                status: "requested",
                 received_date: null,
                 storage_location: null,
                 is_received: false,

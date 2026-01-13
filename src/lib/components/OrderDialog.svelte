@@ -92,7 +92,7 @@
                     : null,
                 status: formData.is_received
                     ? "received"
-                    : order?.status || "ordered",
+                    : order?.status || "requested",
                 order_date:
                     order?.order_date || new Date().toISOString().split("T")[0],
             };

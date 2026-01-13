@@ -3,6 +3,7 @@
     import { Plus, Download } from "lucide-svelte";
     import ExcelIngestor from "$lib/components/ExcelIngestor.svelte";
     import { orderService } from "$lib/services/orderService";
+    import WipeDbDialog from "./WipeDbDialog.svelte";
 
     let { onExport, onNewOrder, onWipe } = $props<{
         onExport: () => void;
@@ -10,16 +11,7 @@
         onWipe: () => void; // Parent handles the reload/invalidate
     }>();
 
-    async function handleWipe() {
-        if (confirm("DANGER: This will delete ALL orders. Are you sure?")) {
-            const { error } = await orderService.deleteAllOrders();
-            if (error) alert("Error: " + error.message);
-            else {
-                alert("Database wiped.");
-                onWipe();
-            }
-        }
-    }
+    let isWipeOpen = $state(false);
 </script>
 
 <div class="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -30,7 +22,11 @@
         <p class="text-zinc-400">Manage orders</p>
     </div>
     <div class="flex items-center gap-2">
-        <Button variant="destructive" size="sm" onclick={handleWipe}>
+        <Button
+            variant="destructive"
+            size="sm"
+            onclick={() => (isWipeOpen = true)}
+        >
             Wipe DB
         </Button>
 
@@ -51,3 +47,5 @@
         </Button>
     </div>
 </div>
+
+<WipeDbDialog bind:open={isWipeOpen} {onWipe} />
