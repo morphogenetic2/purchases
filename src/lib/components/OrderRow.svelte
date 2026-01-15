@@ -6,19 +6,43 @@
     import EditableCell from "$lib/components/EditableCell.svelte";
     import type { Order, Column } from "$lib/types";
     import { getStatusColor } from "$lib/utils";
+    import { Checkbox } from "$lib/components/ui/checkbox";
 
-    let { order, visibleColumns, onEdit, onReceive, onRevert, onUpdate } =
-        $props<{
-            order: Order;
-            visibleColumns: Column[];
-            onEdit: (order: Order) => void;
-            onReceive: (id: string) => void;
-            onRevert: (id: string) => void;
-            onUpdate: (id: string, field: string, value: any) => Promise<void>;
-        }>();
+    let {
+        order,
+        visibleColumns,
+        onEdit,
+        onReceive,
+        onRevert,
+        onUpdate,
+        rowClass = "",
+        isSelected = false,
+        onToggleSelect,
+    } = $props<{
+        order: Order;
+        visibleColumns: Column[];
+        onEdit: (order: Order) => void;
+        onReceive: (id: string) => void;
+        onRevert: (id: string) => void;
+        onUpdate: (id: string, field: string, value: any) => Promise<void>;
+        rowClass?: string;
+        isSelected?: boolean;
+        onToggleSelect?: (id: string) => void;
+    }>();
 </script>
 
-<Table.Row class="border-zinc-800 hover:bg-zinc-800/30">
+<Table.Row
+    class="border-zinc-800 hover:bg-zinc-800/30 {rowClass} {isSelected
+        ? 'bg-zinc-800/80'
+        : ''}"
+>
+    <Table.Cell class="w-[40px] px-2 text-center">
+        <Checkbox
+            checked={isSelected}
+            onCheckedChange={() => onToggleSelect?.(order.id)}
+            class="border-zinc-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+        />
+    </Table.Cell>
     {#each visibleColumns as col (col.id)}
         {#if col.id === "date_formatted"}
             <Table.Cell class="font-mono text-zinc-300">

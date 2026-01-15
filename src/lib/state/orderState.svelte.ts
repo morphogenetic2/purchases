@@ -1,4 +1,5 @@
 import type { Order, Column } from "$lib/types";
+import { SvelteSet } from "svelte/reactivity";
 
 export type GroupByOption = 'none' | 'date' | 'provider' | 'requester' | 'status';
 
@@ -13,6 +14,7 @@ export class OrderState {
     searchTerm = $state("");
     sortDirection = $state("desc");
     groupBy = $state<GroupByOption>('none');
+    selectedIds = new SvelteSet<string>();
 
     // Pagination
     currentPage = $state(1);
@@ -53,6 +55,52 @@ export class OrderState {
 
     setOrders(orders: Order[]) {
         this.rawOrders = orders;
+    }
+
+    // --- Realtime ---
+    handleRealtimeEvent(payload: any) {
+        const { eventType, new: newRecord, old: oldRecord } = payload;
+
+        if (eventType === 'INSERT') {
+            if (!this.rawOrders.find(o => o.id === newRecord.id)) {
+                this.rawOrders.push(newRecord as Order);
+            }
+        } else if (eventType === 'UPDATE') {
+            const index = this.rawOrders.findIndex(o => o.id === newRecord.id);
+            if (index !== -1) {
+                // Svelte 5 deep reactivity handles object mutation
+                Object.assign(this.rawOrders[index], newRecord);
+            }
+        } else if (eventType === 'DELETE') {
+            const index = this.rawOrders.findIndex(o => o.id === oldRecord.id);
+            if (index !== -1) {
+                this.rawOrders.splice(index, 1);
+            }
+            if (this.selectedIds.has(oldRecord.id)) {
+                this.selectedIds.delete(oldRecord.id);
+            }
+        }
+    }
+
+    // --- Selection ---
+    toggleSelection(id: string) {
+        if (this.selectedIds.has(id)) {
+            this.selectedIds.delete(id);
+        } else {
+            this.selectedIds.add(id);
+        }
+    }
+
+    toggleAll(ids: string[]) {
+        if (ids.every(id => this.selectedIds.has(id))) {
+            ids.forEach(id => this.selectedIds.delete(id));
+        } else {
+            ids.forEach(id => this.selectedIds.add(id));
+        }
+    }
+
+    clearSelection() {
+        this.selectedIds.clear();
     }
 
     toggleSort() {

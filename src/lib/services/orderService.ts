@@ -48,7 +48,12 @@ export const orderService = {
         if (order.id) {
             return await supabase.from("orders").update(dataToSave).eq("id", order.id);
         } else {
-            return await supabase.from("orders").insert([dataToSave]);
+            // Generate ID if missing to prevent "violates not-null constraint" if DB has no default
+            const insertData = { ...dataToSave };
+            if (!insertData.id && typeof crypto !== "undefined" && crypto.randomUUID) {
+                insertData.id = crypto.randomUUID();
+            }
+            return await supabase.from("orders").insert([insertData]);
         }
     },
 

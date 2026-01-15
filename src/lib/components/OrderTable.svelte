@@ -30,6 +30,19 @@
 
     import { orderService } from "$lib/services/orderService";
 
+    import { Checkbox } from "$lib/components/ui/checkbox";
+    import FloatingActionBar from "$lib/components/FloatingActionBar.svelte";
+    import { exportOrdersToExcel } from "$lib/utils/export";
+
+    const groupColors = [
+        "bg-emerald-950/20",
+        "bg-blue-950/20",
+        "bg-cyan-950/20",
+        "bg-purple-950/20",
+        "bg-amber-950/20",
+        "bg-rose-950/20",
+    ];
+
     let { state, onEdit, onReceive, onRevert } = $props<{
         state: OrderState;
         onEdit: (order: Order) => void;
@@ -46,6 +59,46 @@
             throw error;
         }
         await invalidateAll();
+    }
+
+    async function handleBulkReceive() {
+        if (!confirm(`Mark ${state.selectedIds.size} orders as received?`))
+            return;
+        const ids = Array.from(state.selectedIds) as string[];
+        await Promise.all(
+            ids.map((id: string) =>
+                orderService.updateOrder(id, {
+                    status: "received",
+                    received_date: new Date().toISOString().split("T")[0],
+                    is_received: true,
+                }),
+            ),
+        );
+        state.clearSelection();
+        await invalidateAll();
+    }
+
+    async function handleBulkDelete() {
+        if (
+            !confirm(
+                `Delete ${state.selectedIds.size} orders? This cannot be undone.`,
+            )
+        )
+            return;
+        const ids = Array.from(state.selectedIds) as string[];
+        await Promise.all(
+            ids.map((id: string) => orderService.deleteOrder(id)),
+        );
+        state.clearSelection();
+        await invalidateAll();
+    }
+
+    function handleBulkExport() {
+        const selectedOrders = state.rawOrders.filter((o: Order) =>
+            state.selectedIds.has(o.id),
+        );
+        exportOrdersToExcel(selectedOrders);
+        state.clearSelection();
     }
 </script>
 
@@ -125,6 +178,21 @@
             <Table.Root class="table-fixed">
                 <Table.Header>
                     <Table.Row class="border-zinc-800 hover:bg-transparent">
+                        <Table.Head class="w-[40px] px-2 text-center">
+                            <Checkbox
+                                checked={state.paginatedOrders.length > 0 &&
+                                    state.paginatedOrders.every((o: Order) =>
+                                        state.selectedIds.has(o.id),
+                                    )}
+                                onCheckedChange={() =>
+                                    state.toggleAll(
+                                        state.paginatedOrders.map(
+                                            (o: Order) => o.id,
+                                        ),
+                                    )}
+                                class="border-zinc-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                            />
+                        </Table.Head>
                         {#each state.visibleColumns as col (col.id)}
                             {#if col.id === "date_formatted"}
                                 <th
@@ -228,21 +296,26 @@
                     {#if state.filteredOrders.length === 0}
                         <Table.Row>
                             <Table.Cell
-                                colspan={state.visibleColumns.length}
+                                colspan={state.visibleColumns.length + 1}
                                 class="h-24 text-center text-zinc-500"
                             >
                                 No orders found.
                             </Table.Cell>
                         </Table.Row>
                     {:else}
-                        {#each state.groupedOrders as group (group.key)}
+                        {#each state.groupedOrders as group, i (group.key)}
+                            {@const rowColor =
+                                state.groupBy !== "none"
+                                    ? groupColors[i % groupColors.length]
+                                    : ""}
                             <!-- Group Header -->
                             {#if state.groupBy !== "none"}
                                 <Table.Row
                                     class="bg-zinc-800/50 border-zinc-700 hover:bg-zinc-800/50"
                                 >
                                     <Table.Cell
-                                        colspan={state.visibleColumns.length}
+                                        colspan={state.visibleColumns.length +
+                                            1}
                                         class="py-2 px-4"
                                     >
                                         <div class="flex items-center gap-3">
@@ -267,6 +340,10 @@
 
                             {#each group.orders as order (order.id)}
                                 <OrderRow
+                                    rowClass={rowColor}
+                                    isSelected={state.selectedIds.has(order.id)}
+                                    onToggleSelect={() =>
+                                        state.toggleSelection(order.id)}
                                     {order}
                                     visibleColumns={state.visibleColumns}
                                     {onEdit}
@@ -341,3 +418,11 @@
         {/if}
     </Card.Content>
 </Card.Root>
+
+<FloatingActionBar
+    count={state.selectedIds.size}
+    onClear={() => state.clearSelection()}
+    onReceive={handleBulkReceive}
+    onDelete={handleBulkDelete}
+    onExport={handleBulkExport}
+/>

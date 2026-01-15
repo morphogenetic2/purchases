@@ -8,6 +8,7 @@
     import { exportOrdersToExcel } from "$lib/utils/export";
     import type { Order } from "$lib/types";
     import ExportDialog from "$lib/components/ExportDialog.svelte";
+    import { supabase } from "$lib/supabaseClient";
 
     let { data } = $props();
 
@@ -19,6 +20,28 @@
     // Sync state when data refreshes (e.g. after invalidateAll)
     $effect(() => {
         orderState.setOrders((data.orders as Order[]) || []);
+    });
+
+    // Realtime Subscription
+    $effect(() => {
+        const channel = supabase
+            .channel("table-db-changes")
+            .on(
+                "postgres_changes",
+                {
+                    event: "*",
+                    schema: "public",
+                    table: "orders",
+                },
+                (payload) => {
+                    orderState.handleRealtimeEvent(payload);
+                },
+            )
+            .subscribe();
+
+        return () => {
+            supabase.removeChannel(channel);
+        };
     });
 
     // Reset pagination when search/filters change
