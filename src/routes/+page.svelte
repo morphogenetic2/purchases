@@ -12,6 +12,7 @@
     let { data } = $props();
 
     // Initialize State
+    // svelte-ignore state_referenced_locally
     let orderState = new OrderState((data.orders as Order[]) || []);
     let isExportOpen = $state(false);
 

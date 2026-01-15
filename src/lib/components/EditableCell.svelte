@@ -14,9 +14,16 @@
     }>();
 
     let isEditing = $state(false);
+    // svelte-ignore state_referenced_locally
     let editValue = $state(String(value ?? ""));
     let isSaving = $state(false);
     let inputRef = $state<HTMLInputElement | null>(null);
+
+    $effect(() => {
+        if (!isEditing) {
+            editValue = String(value ?? "");
+        }
+    });
 
     function startEditing() {
         editValue = String(value ?? "");
