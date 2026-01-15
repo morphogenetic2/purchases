@@ -33,7 +33,8 @@
             size="sm"
             class="h-8 px-2 lg:px-3 text-zinc-400 hover:text-white hover:bg-transparent data-[state=open]:text-white data-[state=open]:bg-transparent"
         >
-            <span class="mr-2">{title}</span>
+            <Filter class="mr-2 h-4 w-4" />
+            <span class="">{title}</span>
             {#if selected.length > 0 && selected.length < options.length}
                 <Badge
                     variant="secondary"
@@ -48,7 +49,6 @@
                     {selected.length} selected
                 </Badge>
             {/if}
-            <Filter class="ml-2 h-4 w-4" />
         </Button>
     </Popover.Trigger>
     <Popover.Content

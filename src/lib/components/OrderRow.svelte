@@ -29,11 +29,11 @@
                 />
             </Table.Cell>
         {:else if col.id === "description"}
-            <Table.Cell class="max-w-[300px] overflow-hidden">
-                <div class="font-medium text-zinc-200 truncate">
+            <Table.Cell class="overflow-hidden">
+                <div class="font-medium text-zinc-200 truncate w-full">
                     <EditableCell
                         value={order.description}
-                        class="truncate block max-w-[280px]"
+                        class="truncate block w-full"
                         onUpdate={(val) =>
                             onUpdate(order.id, "description", val)}
                     />
@@ -47,9 +47,10 @@
                 </div>
             </Table.Cell>
         {:else if col.id === "provider"}
-            <Table.Cell class="text-zinc-300 text-sm">
+            <Table.Cell class="text-zinc-300 text-sm overflow-hidden">
                 <EditableCell
                     value={order.provider}
+                    class="truncate block w-full"
                     onUpdate={(val) => onUpdate(order.id, "provider", val)}
                 />
             </Table.Cell>

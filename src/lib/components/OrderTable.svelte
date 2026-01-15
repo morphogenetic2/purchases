@@ -121,7 +121,7 @@
     </Card.Header>
     <Card.Content>
         <div class="rounded-md border border-zinc-800">
-            <Table.Root>
+            <Table.Root class="table-fixed">
                 <Table.Header>
                     <Table.Row class="border-zinc-800 hover:bg-transparent">
                         {#each state.visibleColumns as col (col.id)}
@@ -131,6 +131,13 @@
                                     class="h-12 px-4 text-left align-middle font-medium text-zinc-400 w-[100px]"
                                 >
                                     <div class="flex items-center gap-2">
+                                        <ColumnFilter
+                                            title=""
+                                            options={state.filterOptions.date}
+                                            bind:selected={
+                                                state.activeFilters.date
+                                            }
+                                        />
                                         <button
                                             onclick={() => state.toggleSort()}
                                             class="flex items-center gap-1 hover:text-white transition-colors font-medium"
@@ -142,19 +149,12 @@
                                                     : "↓"}</span
                                             >
                                         </button>
-                                        <ColumnFilter
-                                            title=""
-                                            options={state.filterOptions.date}
-                                            bind:selected={
-                                                state.activeFilters.date
-                                            }
-                                        />
                                     </div>
                                 </th>
                             {:else if col.id === "description"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-left align-middle font-medium text-zinc-400 w-[300px] max-w-[400px]"
+                                    class="h-12 px-4 text-left align-middle font-medium text-zinc-400 w-[300px]"
                                     >Description</th
                                 >
                             {:else if col.id === "provider"}
