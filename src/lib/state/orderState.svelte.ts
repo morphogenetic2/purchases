@@ -95,17 +95,19 @@ export class OrderState {
             if (o.status) statuses.add(o.status);
             if (o.provider) providers.add(o.provider);
 
-            const d = new Date(o.order_date || o.created_at);
-            if (!isNaN(d.getTime())) dates.add(d.toLocaleDateString());
+            if (o.order_date || o.created_at) {
+                const d = new Date(o.order_date || o.created_at);
+                if (!isNaN(d.getTime())) {
+                    dates.add(d.toISOString().split("T")[0]);
+                }
+            }
         });
 
         return {
             requester: Array.from(requesters).sort(),
             status: Array.from(statuses).sort(),
             provider: Array.from(providers).sort(),
-            date: Array.from(dates).sort(
-                (a, b) => new Date(b).getTime() - new Date(a).getTime(),
-            ),
+            date: Array.from(dates).sort().reverse(),
         };
     });
 

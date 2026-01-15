@@ -5,7 +5,7 @@
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
     import { cn } from "$lib/utils";
-    import { supabase } from "$lib/supabaseClient";
+
     import { orderService } from "$lib/services/orderService";
     import { Trash2 } from "lucide-svelte";
 
@@ -87,9 +87,10 @@
         try {
             const dataToSave = {
                 ...formData,
+                id: order?.id,
                 received_date: formData.received_date
                     ? formData.received_date
-                    : null,
+                    : undefined,
                 status: formData.is_received
                     ? "received"
                     : order?.status || "requested",
@@ -97,12 +98,7 @@
                     order?.order_date || new Date().toISOString().split("T")[0],
             };
 
-            const { error } = order
-                ? await supabase
-                      .from("orders")
-                      .update(dataToSave)
-                      .eq("id", order.id)
-                : await supabase.from("orders").insert([dataToSave]);
+            const { error } = await orderService.upsertOrder(dataToSave);
 
             if (error) throw error;
 

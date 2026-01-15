@@ -50,5 +50,16 @@ export const orderService = {
         } else {
             return await supabase.from("orders").insert([dataToSave]);
         }
+    },
+
+    async updateOrder(id: string, updates: Partial<Order>) {
+        return await supabase
+            .from("orders")
+            .update(updates)
+            .eq("id", id);
+    },
+
+    async insertOrders(orders: any[]) {
+        return await supabase.from("orders").insert(orders);
     }
 };

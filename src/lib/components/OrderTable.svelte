@@ -28,6 +28,8 @@
         { value: "status", label: "Group by Status" },
     ];
 
+    import { orderService } from "$lib/services/orderService";
+
     let { state, onEdit, onReceive, onRevert } = $props<{
         state: OrderState;
         onEdit: (order: Order) => void;
@@ -36,10 +38,9 @@
     }>();
 
     async function handleCellUpdate(id: string, field: string, value: any) {
-        const { error } = await supabase
-            .from("orders")
-            .update({ [field]: value })
-            .eq("id", id);
+        const { error } = await orderService.updateOrder(id, {
+            [field]: value,
+        });
 
         if (error) {
             throw error;

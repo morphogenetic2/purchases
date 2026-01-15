@@ -7,11 +7,13 @@
     import { orderService } from "$lib/services/orderService";
     import { exportOrdersToExcel } from "$lib/utils/export";
     import type { Order } from "$lib/types";
+    import ExportDialog from "$lib/components/ExportDialog.svelte";
 
     let { data } = $props();
 
     // Initialize State
     let orderState = new OrderState((data.orders as Order[]) || []);
+    let isExportOpen = $state(false);
 
     // Sync state when data refreshes (e.g. after invalidateAll)
     $effect(() => {
@@ -69,7 +71,7 @@
 
 <div class="min-h-screen bg-zinc-950 text-zinc-100 p-8 space-y-8">
     <OrderToolbar
-        onExport={() => exportOrdersToExcel(orderState.filteredOrders)}
+        onExport={() => (isExportOpen = true)}
         onNewOrder={handleAdd}
         onWipe={handleWipe}
     />
@@ -81,6 +83,12 @@
         onRevert={handleRevertReceive}
     />
 </div>
+
+<ExportDialog
+    bind:open={isExportOpen}
+    state={orderState}
+    onExport={exportOrdersToExcel}
+/>
 
 <OrderDialog
     bind:isOpen={isSheetOpen}
