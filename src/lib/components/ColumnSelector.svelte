@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Button } from "$lib/components/ui/button";
+    import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Checkbox } from "$lib/components/ui/checkbox";
     import { Settings2 } from "lucide-svelte";
     import * as Popover from "$lib/components/ui/popover";
@@ -17,14 +17,14 @@
 </script>
 
 <Popover.Root>
-    <Popover.Trigger>
-        <Button
-            variant="outline"
-            size="sm"
-            class="bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300"
-        >
-            <Settings2 class="h-4 w-4 mr-2" /> Personalize columns
-        </Button>
+    <Popover.Trigger
+        class={buttonVariants({
+            variant: "outline",
+            size: "sm",
+            class: "bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300",
+        })}
+    >
+        <Settings2 class="h-4 w-4 mr-2" /> Personalize columns
     </Popover.Trigger>
     <Popover.Content class="w-64 bg-zinc-950 border-zinc-800 p-0" align="end">
         <div class="p-4 border-b border-zinc-900">

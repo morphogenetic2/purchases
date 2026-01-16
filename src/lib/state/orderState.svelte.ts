@@ -170,7 +170,12 @@ export class OrderState {
                     order.provider?.toLowerCase().includes(search) ||
                     order.ordered_by?.toLowerCase().includes(search) ||
                     order.sku?.toLowerCase().includes(search) ||
-                    order.project_code?.toLowerCase().includes(search);
+                    order.project_code?.toLowerCase().includes(search) ||
+                    order.po_number?.toLowerCase().includes(search) ||
+                    order.storage_location?.toLowerCase().includes(search) ||
+                    order.status?.toLowerCase().includes(search) ||
+                    order.quantity?.toString().includes(search) ||
+                    order.unit_price?.toString().includes(search);
                 if (!matchesSearch) return false;
 
                 // 2. Column Filters

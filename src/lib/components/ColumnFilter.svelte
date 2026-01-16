@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { Button } from "$lib/components/ui/button";
+    import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Checkbox } from "$lib/components/ui/checkbox";
     import * as Popover from "$lib/components/ui/popover";
     import { Filter } from "lucide-svelte";
@@ -27,29 +27,29 @@
 </script>
 
 <Popover.Root bind:open={isOpen}>
-    <Popover.Trigger>
-        <Button
-            variant="ghost"
-            size="sm"
-            class="h-8 px-2 lg:px-3 text-zinc-400 hover:text-white hover:bg-transparent data-[state=open]:text-white data-[state=open]:bg-transparent"
-        >
-            <Filter class="mr-2 h-4 w-4" />
-            <span class="">{title}</span>
-            {#if selected.length > 0 && selected.length < options.length}
-                <Badge
-                    variant="secondary"
-                    class="rounded-sm px-1 font-normal lg:hidden"
-                >
-                    {selected.length}
-                </Badge>
-                <Badge
-                    variant="secondary"
-                    class="rounded-sm px-1 font-normal hidden lg:inline-flex bg-emerald-500/20 text-emerald-500"
-                >
-                    {selected.length} selected
-                </Badge>
-            {/if}
-        </Button>
+    <Popover.Trigger
+        class={buttonVariants({
+            variant: "ghost",
+            size: "sm",
+            class: "h-8 px-2 lg:px-3 text-zinc-400 hover:text-white hover:bg-transparent data-[state=open]:text-white data-[state=open]:bg-transparent",
+        })}
+    >
+        <Filter class="mr-2 h-4 w-4" />
+        <span class="">{title}</span>
+        {#if selected.length > 0 && selected.length < options.length}
+            <Badge
+                variant="secondary"
+                class="rounded-sm px-1 font-normal lg:hidden"
+            >
+                {selected.length}
+            </Badge>
+            <Badge
+                variant="secondary"
+                class="rounded-sm px-1 font-normal hidden lg:inline-flex bg-emerald-500/20 text-emerald-500"
+            >
+                {selected.length} selected
+            </Badge>
+        {/if}
     </Popover.Trigger>
     <Popover.Content
         class="w-[200px] p-0 bg-zinc-900 border-zinc-800 text-zinc-100"
