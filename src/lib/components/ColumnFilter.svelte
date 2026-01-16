@@ -31,11 +31,11 @@
         class={buttonVariants({
             variant: "ghost",
             size: "sm",
-            class: "h-8 px-2 lg:px-3 text-zinc-400 hover:text-white hover:bg-transparent data-[state=open]:text-white data-[state=open]:bg-transparent",
+            class: "h-8 px-1.5 text-zinc-400 hover:text-white hover:bg-transparent data-[state=open]:text-white data-[state=open]:bg-transparent",
         })}
     >
-        <Filter class="mr-2 h-4 w-4" />
-        <span class="">{title}</span>
+        <Filter class="mr-1 h-3.5 w-3.5" />
+        <span class="truncate">{title}</span>
         {#if selected.length > 0 && selected.length < options.length}
             <Badge
                 variant="secondary"

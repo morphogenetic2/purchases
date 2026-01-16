@@ -197,9 +197,11 @@
                             {#if col.id === "date_formatted"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-left align-middle font-medium text-zinc-400 w-[100px]"
+                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 w-[100px] overflow-hidden"
                                 >
-                                    <div class="flex items-center gap-2">
+                                    <div
+                                        class="flex items-center gap-1 overflow-hidden"
+                                    >
                                         <ColumnFilter
                                             title=""
                                             options={state.filterOptions.date}
@@ -209,10 +211,11 @@
                                         />
                                         <button
                                             onclick={() => state.toggleSort()}
-                                            class="flex items-center gap-1 hover:text-white transition-colors font-medium"
+                                            class="flex items-center gap-1 hover:text-white transition-colors font-medium truncate"
                                         >
                                             Date
-                                            <span class="text-[10px] opacity-70"
+                                            <span
+                                                class="text-[10px] opacity-70 flex-shrink-0"
                                                 >{state.sortDirection === "asc"
                                                     ? "↑"
                                                     : "↓"}</span
@@ -223,13 +226,13 @@
                             {:else if col.id === "description"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-left align-middle font-medium text-zinc-400 w-[300px]"
+                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 w-[300px] overflow-hidden text-ellipsis whitespace-nowrap"
                                     >Description</th
                                 >
                             {:else if col.id === "provider"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-left align-middle font-medium text-zinc-400"
+                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
                                         title="Provider"
@@ -242,13 +245,13 @@
                             {:else if col.id === "price_formatted"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-right align-middle font-medium text-zinc-400"
+                                    class="h-12 px-2 text-right align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >Price</th
                                 >
                             {:else if col.id === "ordered_by"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-left align-middle font-medium text-zinc-400"
+                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
                                         title="Requester"
@@ -261,7 +264,7 @@
                             {:else if col.id === "status"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-left align-middle font-medium text-zinc-400"
+                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
                                         title="Status"
@@ -273,19 +276,19 @@
                                 </th>
                             {:else if col.id === "actions"}
                                 <th
-                                    class="h-12 px-4 text-right align-middle font-medium text-zinc-400"
+                                    class="h-12 px-2 text-right align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >Actions</th
                                 >
                             {:else if col.id === "quantity"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-center align-middle font-medium text-zinc-400"
+                                    class="h-12 px-2 text-center align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >Qty</th
                                 >
                             {:else}
                                 <th
                                     use:resizable
-                                    class="h-12 px-4 text-left align-middle font-medium text-zinc-400"
+                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >{col.label}</th
                                 >
                             {/if}
