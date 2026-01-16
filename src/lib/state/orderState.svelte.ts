@@ -1,7 +1,12 @@
 import type { Order, Column } from "$lib/types";
 import { SvelteSet } from "svelte/reactivity";
+import {
+    GROUP_BY_OPTIONS,
+    PAGINATION,
+    type GroupByOption
+} from "$lib/constants";
 
-export type GroupByOption = 'none' | 'date' | 'provider' | 'requester' | 'status';
+export type { GroupByOption };
 
 export interface OrderGroup {
     key: string;
@@ -13,12 +18,12 @@ export class OrderState {
     rawOrders = $state<Order[]>([]);
     searchTerm = $state("");
     sortDirection = $state("desc");
-    groupBy = $state<GroupByOption>('none');
+    groupBy = $state<GroupByOption>(GROUP_BY_OPTIONS.NONE);
     selectedIds = new SvelteSet<string>();
 
     // Pagination
     currentPage = $state(1);
-    pageSize = $state(50);
+    pageSize = $state<number>(PAGINATION.DEFAULT_PAGE_SIZE);
 
     columns = $state<Column[]>([
         { id: "date_formatted", label: "Date", visible: true },

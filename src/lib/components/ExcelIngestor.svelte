@@ -1,215 +1,98 @@
 <script lang="ts">
-    import * as XLSX from "xlsx";
     import { orderService } from "$lib/services/orderService";
     import { invalidateAll } from "$app/navigation";
     import { Upload } from "lucide-svelte";
     import { Button } from "$lib/components/ui/button";
     import { Checkbox } from "$lib/components/ui/checkbox";
-
     import { Label } from "$lib/components/ui/label";
     import * as Table from "$lib/components/ui/table";
     import * as Dialog from "$lib/components/ui/dialog";
 
+    // Import the new Excel module
+    import {
+        DB_FIELDS,
+        parseExcelBuffer,
+        readFileAsBinaryString,
+        transformExcelToOrders,
+        validateOrders,
+        formatValidationErrors,
+        type ParseResult,
+    } from "$lib/excel";
+    import { PREDEFINED_ORDERED_BY } from "$lib/constants";
+
     let fileInput: HTMLInputElement;
-    let previewData: any[] = $state([]);
-    let headers: string[] = $state([]);
+    let parseResult = $state<ParseResult | null>(null);
     let mapping: Record<string, string> = $state({});
     let isOpen = $state(false);
     let isUploading = $state(false);
-    let forceNew = $state(false); // Default false, user can enable
+    let forceNew = $state(false);
 
-    const predefinedOrderedBy = ["ARN", "MA", "FM", "DA"];
-    let defaultOrderedBy = $state(predefinedOrderedBy[0]);
+    let defaultOrderedBy = $state(PREDEFINED_ORDERED_BY[0]);
     let defaultOrderDate = $state(new Date().toISOString().split("T")[0]);
 
-    const dbFields = [
-        { key: "order_date", label: "Order Date" },
-        { key: "ordered_by", label: "Ordered By", required: true },
-        { key: "provider", label: "Provider", required: true },
-        { key: "sku", label: "SKU" },
-        { key: "description", label: "Description", required: true },
-        { key: "quantity", label: "Quantity" },
-        { key: "unit_price", label: "Unit Price" },
-        { key: "project_code", label: "Project Code" },
-        { key: "po_number", label: "PO Number" },
-        { key: "received_date", label: "Received Date" },
-        { key: "storage_location", label: "Storage Location" },
-        { key: "is_received", label: "Received?" },
-    ];
+    // Derived values from parseResult
+    let headers = $derived(parseResult?.headers ?? []);
+    let previewData = $derived(parseResult?.previewData ?? []);
 
-    function handleFile(e: Event) {
+    async function handleFile(e: Event) {
         const target = e.target as HTMLInputElement;
         const file = target.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (evt) => {
-            const bstr = evt.target?.result;
-            const wb = XLSX.read(bstr, { type: "binary" });
-            const wsname = wb.SheetNames[0];
-            const ws = wb.Sheets[wsname];
-            const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
-
-            if (data.length > 0) {
-                headers = data[0] as string[];
-                previewData = data.slice(1, 6);
-                // Auto-map if headers match keys
-                dbFields.forEach((field) => {
-                    const match = headers.find(
-                        (h) =>
-                            h.toLowerCase() === field.key.toLowerCase() ||
-                            h.toLowerCase() === field.label.toLowerCase(),
-                    );
-                    if (match) mapping[field.key] = match;
-                });
-
-                // Reset to default
-                forceNew = false;
-                isOpen = true; // Open dialog to confirm mapping
-            }
-        };
-        reader.readAsBinaryString(file);
+        try {
+            const binaryString = await readFileAsBinaryString(file);
+            parseResult = parseExcelBuffer(binaryString);
+            mapping = { ...parseResult.autoMapping };
+            forceNew = false;
+            isOpen = true;
+        } catch (err) {
+            console.error("Error parsing file:", err);
+            alert("Error reading Excel file");
+        }
     }
 
     async function handleUpload() {
+        if (!parseResult) return;
+
         isUploading = true;
 
-        const file = fileInput.files?.[0];
-        if (!file) return;
+        try {
+            // Transform Excel data to orders
+            const { orders, skippedCount } = transformExcelToOrders(
+                parseResult.allData,
+                {
+                    mapping,
+                    defaultOrderedBy,
+                    defaultOrderDate,
+                    forceNew,
+                },
+            );
 
-        const reader = new FileReader();
-        reader.onload = async (evt) => {
-            try {
-                const bstr = evt.target?.result;
-                const wb = XLSX.read(bstr, { type: "binary" });
-                const wsname = wb.SheetNames[0];
-                const ws = wb.Sheets[wsname];
-                const jsonData = XLSX.utils.sheet_to_json(ws);
-
-                const rowsToInsert = jsonData.map((row: any) => {
-                    const newRow: any = {};
-                    dbFields.forEach((field) => {
-                        const excelHeader = mapping[field.key];
-                        if (excelHeader) {
-                            let val = row[excelHeader];
-                            if (typeof val === "string") val = val.trim();
-
-                            if (field.key === "sku" && val)
-                                val = String(val).toUpperCase();
-                            if (field.key === "unit_price")
-                                val = parseFloat(val) || 0;
-                            if (field.key === "quantity")
-                                val = parseInt(val) || 1;
-
-                            // Date Handling
-                            if (field.key.includes("date") && val) {
-                                // If it's a number (Excel serial date), convert it
-                                if (typeof val === "number") {
-                                    // Excel serial date to JS Date: (val - 25569) * 86400 * 1000
-                                    // Adjust for timezone offset to keep it as "local" date string YYYY-MM-DD
-                                    const date = new Date(
-                                        (val - 25569) * 86400 * 1000,
-                                    );
-                                    val = date.toISOString().split("T")[0];
-                                }
-                                // If it is already a string, try to ensure it's YYYY-MM-DD?
-                                // For now, trust the string or the number conversion.
-                                else if (typeof val === "string") {
-                                    // Basic cleanup if needed, but let's assume ISO or valid string for now
-                                    // If it's something like "12/31/2025", we might want to standardize
-                                    const d = new Date(val);
-                                    if (!isNaN(d.getTime())) {
-                                        val = d.toISOString().split("T")[0];
-                                    }
-                                }
-                            }
-
-                            // Check "Received?" column for Yes/No
-                            if (field.key === "is_received") {
-                                if (
-                                    typeof val === "string" &&
-                                    val.toLowerCase().includes("yes")
-                                ) {
-                                    val = true;
-                                    newRow.status = "received";
-                                } else {
-                                    val = false; // Default or if "No" / blank
-                                }
-                            }
-
-                            newRow[field.key] = val;
-                        } else if (field.key === "ordered_by" && !excelHeader) {
-                            // Use default if no mapping for ordered_by
-                            newRow["ordered_by"] = defaultOrderedBy;
-                        } else if (field.key === "order_date" && !excelHeader) {
-                            // Use default date if no mapping
-                            newRow["order_date"] = defaultOrderDate;
-                        }
-                    });
-
-                    // Force New Order overrides
-                    if (forceNew) {
-                        newRow.status = "requested";
-                        newRow.is_received = false;
-                        newRow.received_date = null;
-                        // Removing ID is usually implicit since we construct newRow from scratch
-                        // but if we were mapping an "id" column, we should delete it here to force insert
-                        delete newRow.id;
-                    } else if (!newRow.status) {
-                        // Default status if not marked as received
-                        newRow.status = "requested";
-                    }
-
-                    return newRow;
-                });
-
-                // Filter out empty rows (missing ALL required fields)
-                // If a row lacks all required fields (Ordered By, Provider, Description), we assume it's a blank line.
-                const validRows = rowsToInsert.filter((row: any) => {
-                    const requiredFields = dbFields.filter((f) => f.required);
-                    return requiredFields.some((f) => !!row[f.key]);
-                });
-
-                // Validation Loop
-                for (let i = 0; i < validRows.length; i++) {
-                    const row = validRows[i];
-                    const missing: string[] = [];
-
-                    dbFields.forEach((f) => {
-                        if (f.required && !row[f.key]) {
-                            missing.push(f.label);
-                        }
-                    });
-
-                    if (missing.length > 0) {
-                        // We can't easily map back to original Excel row number after filtering,
-                        // but standard practice is usually acceptable or we could track index.
-                        // For now, simple alert is better than crashing or blocking on blank lines.
-                        alert(
-                            `Error in Order "${row.description || "Unknown"}": Missing required fields: ${missing.join(", ")}.`,
-                        );
-                        return; // Stop upload
-                    }
-                }
-
-                console.log("Attempting to upload rows:", validRows.length);
-
-                const { error } = await orderService.insertOrders(validRows);
-
-                if (error) throw error;
-
-                alert("Success!");
-                await invalidateAll();
-            } catch (err: any) {
-                console.error("Upload Error:", err);
-                alert("Error: " + (err.message || "Unknown error occurred"));
-            } finally {
-                isUploading = false;
-                isOpen = false;
-                if (fileInput) fileInput.value = ""; // Reset input
+            // Validate orders
+            const validation = validateOrders(orders);
+            if (!validation.valid) {
+                alert(formatValidationErrors(validation));
+                return;
             }
-        };
-        reader.readAsBinaryString(file);
+
+            console.log(
+                `Uploading ${orders.length} orders (skipped ${skippedCount} empty rows)`,
+            );
+
+            // Insert into database
+            const { error } = await orderService.insertOrders(orders);
+            if (error) throw error;
+
+            alert("Success!");
+            await invalidateAll();
+        } catch (err: any) {
+            console.error("Upload Error:", err);
+            alert("Error: " + (err.message || "Unknown error occurred"));
+        } finally {
+            isUploading = false;
+            isOpen = false;
+            if (fileInput) fileInput.value = "";
+        }
     }
 </script>
 
@@ -257,7 +140,7 @@
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                {#each dbFields as field}
+                {#each DB_FIELDS as field}
                     <div class="flex flex-col gap-2">
                         <Label>{field.label} {field.required ? "*" : ""}</Label>
                         <div class="flex gap-2">
@@ -277,7 +160,7 @@
                                     bind:value={defaultOrderedBy}
                                     class="w-[100px] rounded-md border border-zinc-700 bg-zinc-950 px-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-zinc-600"
                                 >
-                                    {#each predefinedOrderedBy as val}
+                                    {#each PREDEFINED_ORDERED_BY as val}
                                         <option value={val}>{val}</option>
                                     {/each}
                                 </select>
@@ -308,7 +191,7 @@
                             <Table.Row
                                 class="border-zinc-800 hover:bg-zinc-900"
                             >
-                                {#each dbFields as field}
+                                {#each DB_FIELDS as field}
                                     <Table.Head
                                         class="text-zinc-400 whitespace-nowrap"
                                         >{field.label}</Table.Head
@@ -321,7 +204,7 @@
                                 <Table.Row
                                     class="border-zinc-800 hover:bg-zinc-900/50"
                                 >
-                                    {#each dbFields as field}
+                                    {#each DB_FIELDS as field}
                                         <Table.Cell
                                             class="font-mono text-xs whitespace-nowrap"
                                         >

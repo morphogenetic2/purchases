@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
+import { STATUS_COLORS, DEFAULT_STATUS_COLOR } from "$lib/constants";
 
 export function cn(...inputs: ClassValue[]) {
 	return twMerge(clsx(inputs));
@@ -12,14 +13,8 @@ export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, "childre
 export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };
 
-export function getStatusColor(status: string) {
-	switch (status?.toLowerCase()) {
-		case "received":
-			return "bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 border-emerald-500/20";
-		case "cancelled":
-			return "bg-red-500/15 text-red-500 hover:bg-red-500/25 border-red-500/20";
-		case "requested":
-		default:
-			return "bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 border-amber-500/20";
-	}
+export function getStatusColor(status: string): string {
+	const key = status?.toLowerCase();
+	return STATUS_COLORS[key] || DEFAULT_STATUS_COLOR;
 }
+

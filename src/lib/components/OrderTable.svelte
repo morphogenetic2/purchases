@@ -10,23 +10,22 @@
     import ColumnSelector from "$lib/components/ColumnSelector.svelte";
     import OrderRow from "$lib/components/OrderRow.svelte";
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
-    import type {
-        OrderState,
-        GroupByOption,
-    } from "$lib/state/orderState.svelte";
+    import type { OrderState } from "$lib/state/orderState.svelte";
     import type { Order } from "$lib/types";
+    import {
+        GROUP_BY_OPTIONS,
+        GROUP_BY_LABELS,
+        type GroupByOption,
+    } from "$lib/constants";
 
     import { getStatusColor } from "$lib/utils";
-    import { supabase } from "$lib/supabaseClient";
     import { invalidateAll } from "$app/navigation";
 
-    const groupByOptions: { value: GroupByOption; label: string }[] = [
-        { value: "none", label: "No Grouping" },
-        { value: "date", label: "Group by Date" },
-        { value: "provider", label: "Group by Provider" },
-        { value: "requester", label: "Group by Requester" },
-        { value: "status", label: "Group by Status" },
-    ];
+    // Build groupByOptions from constants
+    const groupByOptions = Object.values(GROUP_BY_OPTIONS).map((value) => ({
+        value,
+        label: GROUP_BY_LABELS[value],
+    }));
 
     import { orderService } from "$lib/services/orderService";
 
@@ -64,16 +63,15 @@
     async function handleBulkReceive() {
         if (!confirm(`Mark ${state.selectedIds.size} orders as received?`))
             return;
+
         const ids = Array.from(state.selectedIds) as string[];
-        await Promise.all(
-            ids.map((id: string) =>
-                orderService.updateOrder(id, {
-                    status: "received",
-                    received_date: new Date().toISOString().split("T")[0],
-                    is_received: true,
-                }),
-            ),
-        );
+        const { error } = await orderService.bulkReceive(ids);
+
+        if (error) {
+            alert("Error marking orders as received: " + error.message);
+            return;
+        }
+
         state.clearSelection();
         await invalidateAll();
     }
@@ -85,10 +83,15 @@
             )
         )
             return;
+
         const ids = Array.from(state.selectedIds) as string[];
-        await Promise.all(
-            ids.map((id: string) => orderService.deleteOrder(id)),
-        );
+        const { error } = await orderService.bulkDelete(ids);
+
+        if (error) {
+            alert("Error deleting orders: " + error.message);
+            return;
+        }
+
         state.clearSelection();
         await invalidateAll();
     }

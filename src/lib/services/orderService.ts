@@ -1,23 +1,37 @@
 import { supabase } from "$lib/supabaseClient";
+import { ORDER_STATUS } from "$lib/constants";
 import type { Order } from "$lib/types";
 
+/**
+ * Helper to get today's date in ISO format (YYYY-MM-DD)
+ */
+function getTodayISO(): string {
+    return new Date().toISOString().split("T")[0];
+}
+
 export const orderService = {
+    /**
+     * Mark a single order as received
+     */
     async quickReceive(id: string) {
         return await supabase
             .from("orders")
             .update({
-                status: "received",
-                received_date: new Date().toISOString().split("T")[0],
+                status: ORDER_STATUS.RECEIVED,
+                received_date: getTodayISO(),
                 is_received: true,
             })
             .eq("id", id);
     },
 
+    /**
+     * Revert a received order back to requested status
+     */
     async revertReceive(id: string) {
         return await supabase
             .from("orders")
             .update({
-                status: "requested",
+                status: ORDER_STATUS.REQUESTED,
                 received_date: null,
                 storage_location: null,
                 is_received: false,
@@ -25,6 +39,37 @@ export const orderService = {
             .eq("id", id);
     },
 
+    /**
+     * Mark multiple orders as received in a single DB call
+     */
+    async bulkReceive(ids: string[]) {
+        if (ids.length === 0) return { data: null, error: null };
+
+        return await supabase
+            .from("orders")
+            .update({
+                status: ORDER_STATUS.RECEIVED,
+                received_date: getTodayISO(),
+                is_received: true,
+            })
+            .in("id", ids);
+    },
+
+    /**
+     * Delete multiple orders in a single DB call
+     */
+    async bulkDelete(ids: string[]) {
+        if (ids.length === 0) return { data: null, error: null };
+
+        return await supabase
+            .from("orders")
+            .delete()
+            .in("id", ids);
+    },
+
+    /**
+     * Delete all orders (for database wipe functionality)
+     */
     async deleteAllOrders() {
         return await supabase
             .from("orders")
@@ -32,14 +77,17 @@ export const orderService = {
             .neq("id", "00000000-0000-0000-0000-000000000000");
     },
 
+    /**
+     * Delete a single order
+     */
     async deleteOrder(id: string) {
         return await supabase.from("orders").delete().eq("id", id);
     },
 
+    /**
+     * Create or update an order
+     */
     async upsertOrder(order: Partial<Order>) {
-        // Logic for saving/updating from the dialog, if we want to move it here later.
-        // For now keeping it simple as per current usage patterns (which use direct calls often)
-        // But let's expose a clear method for the Dialog to use potentially.
         const dataToSave = {
             ...order,
             received_date: order.received_date ? order.received_date : null,
@@ -57,6 +105,9 @@ export const orderService = {
         }
     },
 
+    /**
+     * Update a single order with partial data
+     */
     async updateOrder(id: string, updates: Partial<Order>) {
         return await supabase
             .from("orders")
@@ -64,6 +115,9 @@ export const orderService = {
             .eq("id", id);
     },
 
+    /**
+     * Insert multiple orders (for Excel import)
+     */
     async insertOrders(orders: any[]) {
         return await supabase.from("orders").insert(orders);
     }

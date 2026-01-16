@@ -1,0 +1,11 @@
+Order Date,Provider,Description,SKU,Ordered By,Quantity,Unit Price,Project Code,PO Number
+2024-01-15,Sigma-Aldrich,DMEM High Glucose Media 500ml,D6429,ARN,5,45.99,PROJ-001,PO-2024-001
+2024-01-15,Sigma-Aldrich,FBS Fetal Bovine Serum 500ml,F0926,ARN,2,389.00,PROJ-001,PO-2024-001
+2024-01-16,Fisher Scientific,Falcon Tubes 15ml (500 pack),352096,MA,10,125.50,PROJ-002,PO-2024-002
+2024-01-16,Fisher Scientific,Falcon Tubes 50ml (500 pack),352070,MA,5,145.00,PROJ-002,PO-2024-002
+2024-01-17,VWR,Pipette Tips 1000ul (1000 pack),613-1080,FM,3,89.00,PROJ-001,
+2024-01-17,VWR,Pipette Tips 200ul (1000 pack),613-1079,FM,3,85.00,PROJ-001,
+2024-01-18,Thermo Fisher,Trypsin-EDTA 0.25% 100ml,25200056,DA,4,78.50,PROJ-003,PO-2024-003
+2024-01-18,Thermo Fisher,PBS pH 7.4 500ml,10010023,DA,6,32.00,PROJ-003,PO-2024-003
+2024-01-19,Corning,Cell Culture Flask T75,430641,ARN,20,89.99,PROJ-001,PO-2024-004
+2024-01-19,Corning,Cell Culture Plate 6-well,3516,ARN,15,145.00,PROJ-001,PO-2024-004

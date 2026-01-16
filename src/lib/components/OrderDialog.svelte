@@ -5,6 +5,7 @@
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
     import { cn } from "$lib/utils";
+    import { ORDER_STATUS } from "$lib/constants";
 
     import { orderService } from "$lib/services/orderService";
     import { Trash2 } from "lucide-svelte";
@@ -92,8 +93,8 @@
                     ? formData.received_date
                     : undefined,
                 status: formData.is_received
-                    ? "received"
-                    : order?.status || "requested",
+                    ? ORDER_STATUS.RECEIVED
+                    : order?.status || ORDER_STATUS.REQUESTED,
                 order_date:
                     order?.order_date || new Date().toISOString().split("T")[0],
             };
