@@ -57,15 +57,20 @@
 
     // --- Actions ---
     let isReceiveOpen = $state(false);
-    let receivingOrderIds = $state<string[]>([]);
+    let receivingOrders = $state<Order[]>([]);
 
     async function handleQuickReceive(id: string) {
-        receivingOrderIds = [id];
-        isReceiveOpen = true;
+        const order = orderState.rawOrders.find((o) => o.id === id);
+        if (order) {
+            receivingOrders = [order];
+            isReceiveOpen = true;
+        }
     }
 
     async function handleBulkReceiveRequest(ids: string[]) {
-        receivingOrderIds = ids;
+        receivingOrders = orderState.rawOrders.filter((o) =>
+            ids.includes(o.id),
+        );
         isReceiveOpen = true;
     }
 
@@ -130,6 +135,6 @@
 
 <ReceiveDialog
     bind:isOpen={isReceiveOpen}
-    orderIds={receivingOrderIds}
+    orders={receivingOrders}
     onSave={() => invalidateAll()}
 />

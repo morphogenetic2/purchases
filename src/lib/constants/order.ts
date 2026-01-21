@@ -8,10 +8,12 @@ export const ORDER_STATUS = {
     REQUESTED: 'requested',
     ORDERED: 'ordered',
     RECEIVED: 'received',
+    PARTIALLY_RECEIVED: 'partially_received',
     CANCELLED: 'cancelled',
 } as const;
 
 export type OrderStatus = typeof ORDER_STATUS[keyof typeof ORDER_STATUS];
+
 
 // Group By Options
 export const GROUP_BY_OPTIONS = {
@@ -45,6 +47,7 @@ export const PREDEFINED_ORDERED_BY = ['ARN', 'MA', 'FM', 'DA'] as const;
 // Status color classes for badges
 export const STATUS_COLORS: Record<OrderStatus | string, string> = {
     [ORDER_STATUS.RECEIVED]: 'bg-emerald-500/15 text-emerald-500 hover:bg-emerald-500/25 border-emerald-500/20',
+    [ORDER_STATUS.PARTIALLY_RECEIVED]: 'bg-sky-500/15 text-sky-500 hover:bg-sky-500/25 border-sky-500/20',
     [ORDER_STATUS.CANCELLED]: 'bg-red-500/15 text-red-500 hover:bg-red-500/25 border-red-500/20',
     [ORDER_STATUS.ORDERED]: 'bg-blue-500/15 text-blue-500 hover:bg-blue-500/25 border-blue-500/20',
     [ORDER_STATUS.REQUESTED]: 'bg-amber-500/15 text-amber-500 hover:bg-amber-500/25 border-amber-500/20',

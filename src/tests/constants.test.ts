@@ -21,8 +21,8 @@ describe('Constants', () => {
             expect(ORDER_STATUS.CANCELLED).toBe('cancelled');
         });
 
-        it('should have exactly 4 statuses', () => {
-            expect(Object.keys(ORDER_STATUS)).toHaveLength(4);
+        it('should have exactly 5 statuses', () => {
+            expect(Object.keys(ORDER_STATUS)).toHaveLength(5);
         });
     });
 

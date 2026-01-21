@@ -34,6 +34,7 @@ export const orderService = {
                 status: ORDER_STATUS.REQUESTED,
                 received_date: null,
                 storage_location: null,
+                quantity_received: 0,
                 is_received: false,
             })
             .eq("id", id);

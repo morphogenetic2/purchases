@@ -12,6 +12,7 @@ export interface Order {
     unit_price?: number;
     status: string;
     received_date?: string;
+    quantity_received?: number;
     storage_location?: string;
     is_received?: boolean;
 }

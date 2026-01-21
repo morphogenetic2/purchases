@@ -109,11 +109,20 @@
             </Table.Cell>
         {:else if col.id === "quantity"}
             <Table.Cell class="text-center text-zinc-300">
-                <EditableCell
-                    value={order.quantity}
-                    type="integer"
-                    onUpdate={(val) => onUpdate(order.id, "quantity", val)}
-                />
+                {#if order.quantity_received && order.quantity_received > 0 && order.quantity_received < order.quantity}
+                    <div class="flex flex-col items-center leading-none">
+                        <span class="text-xs text-sky-400 font-bold mb-0.5"
+                            >{order.quantity_received} / {order.quantity}</span
+                        >
+                        <!-- Show total below as muted to indicate it's the target -->
+                    </div>
+                {:else}
+                    <EditableCell
+                        value={order.quantity}
+                        type="integer"
+                        onUpdate={(val) => onUpdate(order.id, "quantity", val)}
+                    />
+                {/if}
             </Table.Cell>
         {:else if col.id === "received_date"}
             <Table.Cell class="text-zinc-400 text-sm">
@@ -137,13 +146,18 @@
                     variant="outline"
                     class="{getStatusColor(
                         order.status,
-                    )} border whitespace-nowrap {order.status === 'received'
+                    )} border whitespace-nowrap {order.status === 'received' ||
+                    order.status === 'partially_received'
                         ? 'cursor-pointer hover:opacity-80'
                         : ''}"
                     onclick={() =>
-                        order.status === "received" && onRevert(order.id)}
+                        (order.status === "received" ||
+                            order.status === "partially_received") &&
+                        onRevert(order.id)}
                 >
-                    {order.status}
+                    {order.status === "partially_received"
+                        ? "Partial"
+                        : order.status}
                 </Badge>
             </Table.Cell>
         {:else if col.id === "actions"}
