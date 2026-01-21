@@ -1,4 +1,4 @@
-import type { Order, Column } from "$lib/types";
+import type { Order, Column, RealtimeEventPayload } from "$lib/types";
 import { SvelteSet } from "svelte/reactivity";
 import {
     GROUP_BY_OPTIONS,
@@ -64,7 +64,8 @@ export class OrderState {
 
     // --- Realtime ---
     // --- Realtime ---
-    handleRealtimeEvent(payload: any) {
+    // --- Realtime ---
+    handleRealtimeEvent(payload: RealtimeEventPayload<Order>) {
         const { eventType, new: newRecord, old: oldRecord } = payload;
 
         console.log(`Realtime Event [${eventType}] received:`, payload);
@@ -84,7 +85,7 @@ export class OrderState {
             if (index !== -1) {
                 this.rawOrders.splice(index, 1);
             }
-            if (oldRecord && this.selectedIds.has(oldRecord.id)) {
+            if (oldRecord?.id && this.selectedIds.has(oldRecord.id)) {
                 this.selectedIds.delete(oldRecord.id);
             }
         }

@@ -6,9 +6,10 @@
     import { OrderState } from "$lib/state/orderState.svelte";
     import { orderService } from "$lib/services/orderService";
     import { exportOrdersToExcel } from "$lib/utils/export";
-    import type { Order } from "$lib/types";
+    import type { Order, RealtimeEventPayload } from "$lib/types";
     import ExportDialog from "$lib/components/ExportDialog.svelte";
     import { supabase } from "$lib/supabaseClient";
+    import ReceiveDialog from "$lib/components/ReceiveDialog.svelte";
 
     let { data } = $props();
 
@@ -34,7 +35,9 @@
                     table: "orders",
                 },
                 (payload) => {
-                    orderState.handleRealtimeEvent(payload);
+                    orderState.handleRealtimeEvent(
+                        payload as unknown as RealtimeEventPayload<Order>,
+                    );
                 },
             )
             .subscribe();
@@ -53,14 +56,17 @@
     });
 
     // --- Actions ---
+    let isReceiveOpen = $state(false);
+    let receivingOrderIds = $state<string[]>([]);
 
     async function handleQuickReceive(id: string) {
-        const { error } = await orderService.quickReceive(id);
-        if (error) {
-            alert("Error updating order: " + error.message);
-        } else {
-            invalidateAll();
-        }
+        receivingOrderIds = [id];
+        isReceiveOpen = true;
+    }
+
+    async function handleBulkReceiveRequest(ids: string[]) {
+        receivingOrderIds = ids;
+        isReceiveOpen = true;
     }
 
     async function handleRevertReceive(id: string) {
@@ -104,6 +110,7 @@
         state={orderState}
         onEdit={handleEdit}
         onReceive={handleQuickReceive}
+        onBulkReceive={handleBulkReceiveRequest}
         onRevert={handleRevertReceive}
     />
 </div>
@@ -118,5 +125,11 @@
     bind:isOpen={isSheetOpen}
     order={editingOrder}
     providers={orderState.filterOptions.provider}
+    onSave={() => invalidateAll()}
+/>
+
+<ReceiveDialog
+    bind:isOpen={isReceiveOpen}
+    orderIds={receivingOrderIds}
     onSave={() => invalidateAll()}
 />

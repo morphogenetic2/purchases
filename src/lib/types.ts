@@ -21,3 +21,13 @@ export interface Column {
     label: string;
     visible: boolean;
 }
+
+export interface RealtimeEventPayload<T = Order> {
+    eventType: 'INSERT' | 'UPDATE' | 'DELETE';
+    new: T | null;
+    old: Partial<T> | null;
+    schema: string;
+    table: string;
+    commit_timestamp: string;
+    errors: null | any[];
+}

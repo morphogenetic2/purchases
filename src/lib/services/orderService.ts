@@ -116,6 +116,17 @@ export const orderService = {
     },
 
     /**
+     * Update multiple orders with the same partial data
+     */
+    async bulkUpdate(ids: string[], updates: Partial<Order>) {
+        if (ids.length === 0) return { data: null, error: null };
+        return await supabase
+            .from("orders")
+            .update(updates)
+            .in("id", ids);
+    },
+
+    /**
      * Insert multiple orders (for Excel import)
      */
     async insertOrders(orders: any[]) {

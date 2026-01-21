@@ -32,6 +32,7 @@
     import { Checkbox } from "$lib/components/ui/checkbox";
     import FloatingActionBar from "$lib/components/FloatingActionBar.svelte";
     import { exportOrdersToExcel } from "$lib/utils/export";
+    import PaginationControls from "$lib/components/PaginationControls.svelte";
 
     const groupColors = [
         "bg-emerald-950/20",
@@ -42,10 +43,11 @@
         "bg-rose-950/20",
     ];
 
-    let { state, onEdit, onReceive, onRevert } = $props<{
+    let { state, onEdit, onReceive, onBulkReceive, onRevert } = $props<{
         state: OrderState;
         onEdit: (order: Order) => void;
         onReceive: (id: string) => void;
+        onBulkReceive: (ids: string[]) => void;
         onRevert: (id: string) => void;
     }>();
 
@@ -57,22 +59,6 @@
         if (error) {
             throw error;
         }
-        await invalidateAll();
-    }
-
-    async function handleBulkReceive() {
-        if (!confirm(`Mark ${state.selectedIds.size} orders as received?`))
-            return;
-
-        const ids = Array.from(state.selectedIds) as string[];
-        const { error } = await orderService.bulkReceive(ids);
-
-        if (error) {
-            alert("Error marking orders as received: " + error.message);
-            return;
-        }
-
-        state.clearSelection();
         await invalidateAll();
     }
 
@@ -363,62 +349,18 @@
         </div>
 
         <!-- Pagination Footer -->
+        <!-- Pagination Footer -->
         {#if state.filteredOrders.length > 0}
-            <div
-                class="flex items-center justify-between px-4 py-3 border-t border-zinc-800"
-            >
-                <div class="text-sm text-zinc-500">
-                    Showing {state.pageInfo.start} to {state.pageInfo.end} of {state
-                        .pageInfo.total} orders
-                </div>
-                <div class="flex items-center gap-4">
-                    <!-- Page Size Selector -->
-                    <div class="flex items-center gap-2">
-                        <span class="text-sm text-zinc-500">Per page:</span>
-                        <select
-                            class="bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                            value={state.pageSize}
-                            onchange={(e) =>
-                                state.setPageSize(
-                                    Number(e.currentTarget.value),
-                                )}
-                        >
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                            <option value={100}>100</option>
-                            <option value={250}>250</option>
-                            <option value={500}>500</option>
-                            <option value={1000}>1000</option>
-                            <option value={10000}>All</option>
-                        </select>
-                    </div>
-
-                    <!-- Page Navigation -->
-                    <div class="flex items-center gap-1">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            class="h-8 w-8 p-0 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 disabled:opacity-50"
-                            disabled={state.currentPage <= 1}
-                            onclick={() => state.prevPage()}
-                        >
-                            <ChevronLeft class="h-4 w-4" />
-                        </Button>
-                        <span class="text-sm text-zinc-300 px-3">
-                            Page {state.currentPage} of {state.totalPages}
-                        </span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            class="h-8 w-8 p-0 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 disabled:opacity-50"
-                            disabled={state.currentPage >= state.totalPages}
-                            onclick={() => state.nextPage()}
-                        >
-                            <ChevronRight class="h-4 w-4" />
-                        </Button>
-                    </div>
-                </div>
-            </div>
+            <PaginationControls
+                currentPage={state.currentPage}
+                totalPages={state.totalPages}
+                pageSize={state.pageSize}
+                totalItems={state.pageInfo.total}
+                startItem={state.pageInfo.start}
+                endItem={state.pageInfo.end}
+                onPageChange={(page) => state.setPage(page)}
+                onPageSizeChange={(size) => state.setPageSize(size)}
+            />
         {/if}
     </Card.Content>
 </Card.Root>
@@ -426,7 +368,7 @@
 <FloatingActionBar
     count={state.selectedIds.size}
     onClear={() => state.clearSelection()}
-    onReceive={handleBulkReceive}
+    onReceive={() => onBulkReceive(Array.from(state.selectedIds) as string[])}
     onDelete={handleBulkDelete}
     onExport={handleBulkExport}
 />
