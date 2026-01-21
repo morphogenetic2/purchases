@@ -53,7 +53,7 @@ export function parseExcelBuffer(binaryString: string): ParseResult {
 /**
  * Creates automatic mapping from Excel headers to DB fields.
  */
-function createAutoMapping(
+export function createAutoMapping(
     headers: string[],
     fields: FieldDefinition[]
 ): Record<string, string> {
@@ -61,9 +61,18 @@ function createAutoMapping(
 
     fields.forEach((field) => {
         const match = headers.find(
-            (h) =>
-                h?.toLowerCase() === field.key.toLowerCase() ||
-                h?.toLowerCase() === field.label.toLowerCase()
+            (h) => {
+                if (!h) return false;
+                const headerLower = h.toLowerCase();
+                // Check key match
+                if (headerLower === field.key.toLowerCase()) return true;
+                // Check label match
+                if (headerLower === field.label.toLowerCase()) return true;
+                // Check aliases match
+                if (field.aliases?.some(alias => alias.toLowerCase() === headerLower)) return true;
+
+                return false;
+            }
         );
         if (match) {
             mapping[field.key] = match;

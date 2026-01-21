@@ -63,25 +63,28 @@ export class OrderState {
     }
 
     // --- Realtime ---
+    // --- Realtime ---
     handleRealtimeEvent(payload: any) {
         const { eventType, new: newRecord, old: oldRecord } = payload;
 
+        console.log(`Realtime Event [${eventType}] received:`, payload);
+
         if (eventType === 'INSERT') {
-            if (!this.rawOrders.find(o => o.id === newRecord.id)) {
+            if (newRecord && !this.rawOrders.find(o => o.id === newRecord.id)) {
                 this.rawOrders.push(newRecord as Order);
             }
         } else if (eventType === 'UPDATE') {
-            const index = this.rawOrders.findIndex(o => o.id === newRecord.id);
-            if (index !== -1) {
+            const index = this.rawOrders.findIndex(o => o.id === newRecord?.id);
+            if (index !== -1 && newRecord) {
                 // Svelte 5 deep reactivity handles object mutation
                 Object.assign(this.rawOrders[index], newRecord);
             }
         } else if (eventType === 'DELETE') {
-            const index = this.rawOrders.findIndex(o => o.id === oldRecord.id);
+            const index = this.rawOrders.findIndex(o => o.id === oldRecord?.id);
             if (index !== -1) {
                 this.rawOrders.splice(index, 1);
             }
-            if (this.selectedIds.has(oldRecord.id)) {
+            if (oldRecord && this.selectedIds.has(oldRecord.id)) {
                 this.selectedIds.delete(oldRecord.id);
             }
         }
@@ -202,10 +205,9 @@ export class OrderState {
                     return false;
 
                 if (this.activeFilters.date.length > 0) {
-                    const d = new Date(
-                        order.order_date || order.created_at,
-                    ).toLocaleDateString();
-                    if (!this.activeFilters.date.includes(d)) return false;
+                    const d = new Date(order.order_date || order.created_at);
+                    const dateStr = !isNaN(d.getTime()) ? d.toISOString().split("T")[0] : "";
+                    if (!this.activeFilters.date.includes(dateStr)) return false;
                 }
 
                 return true;
@@ -261,7 +263,8 @@ export class OrderState {
 
             switch (this.groupBy) {
                 case 'date': {
-                    const dateStr = new Date(order.order_date || order.created_at).toLocaleDateString();
+                    const d = new Date(order.order_date || order.created_at);
+                    const dateStr = !isNaN(d.getTime()) ? d.toISOString().split("T")[0] : "Unknown";
                     key = dateStr;
                     label = dateStr;
                     break;

@@ -68,8 +68,13 @@ export function transformExcelToOrders(
         return newRow;
     });
 
-    // Filter out empty rows (rows missing all required fields)
+    // Filter out empty rows (rows missing all required fields) and specific ignored rows
     const validOrders = orders.filter((row: any) => {
+        // Ignore specific edge case row
+        if (row['provider'] === 'DEBEN ORDENAR LOS PRODUCTOS SEPARADOS POR PROVEEDOR') {
+            return false;
+        }
+
         const requiredFields = DB_FIELDS.filter((f) => f.required);
         const hasAnyRequired = requiredFields.some((f) => !!row[f.key]);
         if (!hasAnyRequired) {

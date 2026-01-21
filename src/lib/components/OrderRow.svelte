@@ -36,7 +36,7 @@
         ? 'bg-zinc-800/80'
         : ''}"
 >
-    <Table.Cell class="w-[40px] px-2 text-center">
+    <Table.Cell class="w-[32px] px-1 text-center">
         <Checkbox
             checked={isSelected}
             onCheckedChange={() => onToggleSelect?.(order.id)}

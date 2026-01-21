@@ -181,7 +181,7 @@
             <Table.Root class="table-fixed">
                 <Table.Header>
                     <Table.Row class="border-zinc-800 hover:bg-transparent">
-                        <Table.Head class="w-[40px] px-2 text-center">
+                        <Table.Head class="w-[32px] px-1 text-center">
                             <Checkbox
                                 checked={state.paginatedOrders.length > 0 &&
                                     state.paginatedOrders.every((o: Order) =>
@@ -200,13 +200,11 @@
                             {#if col.id === "date_formatted"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 w-[100px] overflow-hidden"
+                                    class="h-12 px-1 text-left align-middle font-medium text-zinc-400 w-[100px]"
                                 >
-                                    <div
-                                        class="flex items-center gap-1 overflow-hidden"
-                                    >
+                                    <div class="flex items-center gap-0.5">
                                         <ColumnFilter
-                                            title=""
+                                            title="Date"
                                             options={state.filterOptions.date}
                                             bind:selected={
                                                 state.activeFilters.date
@@ -214,9 +212,9 @@
                                         />
                                         <button
                                             onclick={() => state.toggleSort()}
-                                            class="flex items-center gap-1 hover:text-white transition-colors font-medium truncate"
+                                            class="flex items-center hover:text-white transition-colors"
+                                            title="Toggle Sort"
                                         >
-                                            Date
                                             <span
                                                 class="text-[10px] opacity-70 flex-shrink-0"
                                                 >{state.sortDirection === "asc"
@@ -229,13 +227,13 @@
                             {:else if col.id === "description"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 w-[300px] overflow-hidden text-ellipsis whitespace-nowrap"
+                                    class="h-12 px-1 text-left align-middle font-medium text-zinc-400 w-[300px] overflow-hidden text-ellipsis whitespace-nowrap"
                                     >Description</th
                                 >
                             {:else if col.id === "provider"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 overflow-hidden"
+                                    class="h-12 px-1 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
                                         title="Provider"
@@ -248,13 +246,13 @@
                             {:else if col.id === "price_formatted"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-2 text-right align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
+                                    class="h-12 px-1 text-right align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >Price</th
                                 >
                             {:else if col.id === "ordered_by"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 overflow-hidden"
+                                    class="h-12 px-1 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
                                         title="Requester"
@@ -267,7 +265,7 @@
                             {:else if col.id === "status"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 overflow-hidden"
+                                    class="h-12 px-1 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
                                         title="Status"
@@ -279,19 +277,19 @@
                                 </th>
                             {:else if col.id === "actions"}
                                 <th
-                                    class="h-12 px-2 text-right align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
+                                    class="h-12 px-1 text-right align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >Actions</th
                                 >
                             {:else if col.id === "quantity"}
                                 <th
                                     use:resizable
-                                    class="h-12 px-2 text-center align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
+                                    class="h-12 px-1 text-center align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >Qty</th
                                 >
                             {:else}
                                 <th
                                     use:resizable
-                                    class="h-12 px-2 text-left align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
+                                    class="h-12 px-1 text-left align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
                                     >{col.label}</th
                                 >
                             {/if}

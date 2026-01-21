@@ -247,5 +247,28 @@ describe('Excel Transformer', () => {
 
             expect(orders[0].order_date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
         });
+
+        it('should ignore rows with distinct provider separator text', () => {
+            const excelData = [
+                {
+                    Description: 'Valid Order',
+                    Provider: 'Sigma',
+                    'Ordered By': 'John',
+                },
+                {
+                    Provider: 'DEBEN ORDENAR LOS PRODUCTOS SEPARADOS POR PROVEEDOR',
+                },
+                {
+                    Description: 'Another Valid',
+                    Provider: 'Fisher',
+                    'Ordered By': 'Jane',
+                },
+            ];
+
+            const { orders, skippedCount } = transformExcelToOrders(excelData, defaultOptions);
+
+            expect(orders).toHaveLength(2);
+            expect(skippedCount).toBe(0);
+        });
     });
 });

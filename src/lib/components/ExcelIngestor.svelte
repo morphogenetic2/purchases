@@ -43,7 +43,7 @@
             const binaryString = await readFileAsBinaryString(file);
             parseResult = parseExcelBuffer(binaryString);
             mapping = { ...parseResult.autoMapping };
-            forceNew = false;
+            forceNew = true;
             isOpen = true;
         } catch (err) {
             console.error("Error parsing file:", err);
