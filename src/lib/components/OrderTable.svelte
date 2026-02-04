@@ -2,7 +2,7 @@
     import * as Table from "$lib/components/ui/table";
     import * as Card from "$lib/components/ui/card";
     import { Input } from "$lib/components/ui/input";
-    import { Button } from "$lib/components/ui/button";
+    import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
     import { ChevronLeft, ChevronRight, X, Layers } from "lucide-svelte";
     import { resizable } from "$lib/actions/resizable";
@@ -117,26 +117,27 @@
 
                 <!-- Group By Selector -->
                 <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            class="bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300 {state.groupBy !==
-                            'none'
-                                ? 'border-emerald-500/50 text-emerald-400'
-                                : ''}"
-                        >
-                            <Layers class="h-4 w-4 mr-2" />
-                            {state.groupBy === "none"
-                                ? "Group"
-                                : state.groupBy === "date"
-                                  ? "By Date"
-                                  : state.groupBy === "provider"
-                                    ? "By Provider"
-                                    : state.groupBy === "requester"
-                                      ? "By Requester"
-                                      : "By Status"}
-                        </Button>
+                    <DropdownMenu.Trigger
+                        class={buttonVariants({
+                            variant: "outline",
+                            size: "sm",
+                            class: `bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300 ${
+                                state.groupBy !== "none"
+                                    ? "border-emerald-500/50 text-emerald-400"
+                                    : ""
+                            }`,
+                        })}
+                    >
+                        <Layers class="h-4 w-4 mr-2" />
+                        {state.groupBy === "none"
+                            ? "Group"
+                            : state.groupBy === "date"
+                              ? "By Date"
+                              : state.groupBy === "provider"
+                                ? "By Provider"
+                                : state.groupBy === "requester"
+                                  ? "By Requester"
+                                  : "By Status"}
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content class="bg-zinc-950 border-zinc-800">
                         {#each groupByOptions as option}

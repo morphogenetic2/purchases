@@ -43,7 +43,7 @@
     async function handleWipe() {
         isLoading = true;
         try {
-            const { error: err } = await orderService.deleteAllOrders();
+            const { error: err } = await orderService.deleteAllOrders(password);
             if (err) throw err;
             if (onWipe) onWipe();
             open = false;

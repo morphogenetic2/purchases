@@ -1,9 +1,9 @@
-import { supabase } from '$lib/supabaseClient';
+import { supabaseAdmin } from '$lib/server/supabaseAdmin';
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async () => {
-    const { data, error: dbError } = await supabase
+    const { data, error: dbError } = await supabaseAdmin
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false });

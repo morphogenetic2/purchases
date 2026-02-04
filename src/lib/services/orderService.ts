@@ -1,4 +1,3 @@
-import { supabase } from "$lib/supabaseClient";
 import { ORDER_STATUS } from "$lib/constants";
 import type { Order } from "$lib/types";
 
@@ -14,30 +13,32 @@ export const orderService = {
      * Mark a single order as received
      */
     async quickReceive(id: string) {
-        return await supabase
-            .from("orders")
-            .update({
-                status: ORDER_STATUS.RECEIVED,
-                received_date: getTodayISO(),
-                is_received: true,
-            })
-            .eq("id", id);
+        const response = await fetch('/api/orders/receive', {
+            method: 'POST',
+            body: JSON.stringify({ ids: [id] }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
      * Revert a received order back to requested status
      */
     async revertReceive(id: string) {
-        return await supabase
-            .from("orders")
-            .update({
-                status: ORDER_STATUS.REQUESTED,
-                received_date: null,
-                storage_location: null,
-                quantity_received: 0,
-                is_received: false,
-            })
-            .eq("id", id);
+        const updates = {
+            id,
+            status: ORDER_STATUS.REQUESTED,
+            received_date: null,
+            storage_location: null,
+            quantity_received: 0,
+            is_received: false,
+        };
+        const response = await fetch('/api/orders', {
+            method: 'PATCH',
+            body: JSON.stringify(updates),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
@@ -46,14 +47,12 @@ export const orderService = {
     async bulkReceive(ids: string[]) {
         if (ids.length === 0) return { data: null, error: null };
 
-        return await supabase
-            .from("orders")
-            .update({
-                status: ORDER_STATUS.RECEIVED,
-                received_date: getTodayISO(),
-                is_received: true,
-            })
-            .in("id", ids);
+        const response = await fetch('/api/orders/receive', {
+            method: 'POST',
+            body: JSON.stringify({ ids }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
@@ -62,75 +61,105 @@ export const orderService = {
     async bulkDelete(ids: string[]) {
         if (ids.length === 0) return { data: null, error: null };
 
-        return await supabase
-            .from("orders")
-            .delete()
-            .in("id", ids);
+        const response = await fetch('/api/orders', {
+            method: 'DELETE',
+            body: JSON.stringify({ ids }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
      * Delete all orders (for database wipe functionality)
      */
-    async deleteAllOrders() {
-        return await supabase
-            .from("orders")
-            .delete()
-            .neq("id", "00000000-0000-0000-0000-000000000000");
+    async deleteAllOrders(password: string) {
+        const response = await fetch('/api/admin/wipe-db', {
+            method: 'POST',
+            body: JSON.stringify({ password }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
      * Delete a single order
      */
     async deleteOrder(id: string) {
-        return await supabase.from("orders").delete().eq("id", id);
+        const response = await fetch('/api/orders', {
+            method: 'DELETE',
+            body: JSON.stringify({ id }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
      * Create or update an order
      */
     async upsertOrder(order: Partial<Order>) {
-        const dataToSave = {
-            ...order,
-            received_date: order.received_date ? order.received_date : null,
-        };
-
-        if (order.id) {
-            return await supabase.from("orders").update(dataToSave).eq("id", order.id);
-        } else {
-            // Generate ID if missing to prevent "violates not-null constraint" if DB has no default
-            const insertData = { ...dataToSave };
-            if (!insertData.id && typeof crypto !== "undefined" && crypto.randomUUID) {
-                insertData.id = crypto.randomUUID();
-            }
-            return await supabase.from("orders").insert([insertData]);
-        }
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            body: JSON.stringify(order),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
      * Update a single order with partial data
      */
     async updateOrder(id: string, updates: Partial<Order>) {
-        return await supabase
-            .from("orders")
-            .update(updates)
-            .eq("id", id);
+        const response = await fetch('/api/orders', {
+            method: 'PATCH',
+            body: JSON.stringify({ id, ...updates }),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
-     * Update multiple orders with the same partial data
+     * Update multiple orders with the same partial data - NOT IMPLEMENTED ON API YET, FALLBACK OR LOOP
+     * Logic: Iterate or create generic bulk update. 
+     * Since general bulk update endpoint wasn't strictly planned, and usage is rare/unknown, 
+     * we can map it to individual updates or just ignore if unused.
+     * Checking usage led to: not widely used?
+     * Actually, let's implement it by iterating upserts or single bulk update if possible.
+     * 'upsert' works for bulk if we construct the array.
      */
     async bulkUpdate(ids: string[], updates: Partial<Order>) {
         if (ids.length === 0) return { data: null, error: null };
-        return await supabase
-            .from("orders")
-            .update(updates)
-            .in("id", ids);
+
+        const ordersToUpdate = ids.map(id => ({ id, ...updates }));
+
+        const response = await fetch('/api/orders', {
+            method: 'PATCH',
+            body: JSON.stringify(ordersToUpdate),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     },
 
     /**
      * Insert multiple orders (for Excel import)
      */
     async insertOrders(orders: any[]) {
-        return await supabase.from("orders").insert(orders);
+        const response = await fetch('/api/orders', {
+            method: 'POST',
+            body: JSON.stringify(orders),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
     }
 };
+
+async function handleResponse(response: Response) {
+    try {
+        const result = await response.json();
+        if (!response.ok || result.error) {
+            return { data: null, error: { message: result.error || 'Request failed' } };
+        }
+        return { data: result.data || result.success, error: null };
+    } catch (e) {
+        return { data: null, error: { message: 'Network error or invalid JSON' } };
+    }
+}

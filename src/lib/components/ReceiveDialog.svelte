@@ -185,6 +185,7 @@
                 Cancel
             </Button>
             <Button
+                type="button"
                 onclick={handleReceive}
                 disabled={isLoading}
                 class="bg-emerald-600 hover:bg-emerald-700 text-white"
