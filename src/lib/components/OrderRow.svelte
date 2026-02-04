@@ -133,9 +133,12 @@
                 />
             </Table.Cell>
         {:else if col.id === "storage_location"}
-            <Table.Cell class="text-zinc-200 text-sm">
+            <Table.Cell
+                class="text-zinc-200 text-sm overflow-hidden max-w-[150px]"
+            >
                 <EditableCell
                     value={order.storage_location}
+                    class="truncate block w-full"
                     onUpdate={(val) =>
                         onUpdate(order.id, "storage_location", val)}
                 />
