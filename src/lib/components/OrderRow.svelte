@@ -133,9 +133,7 @@
                 />
             </Table.Cell>
         {:else if col.id === "storage_location"}
-            <Table.Cell
-                class="text-zinc-200 text-sm overflow-hidden max-w-[150px]"
-            >
+            <Table.Cell class="text-zinc-200 text-sm overflow-hidden">
                 <EditableCell
                     value={order.storage_location}
                     class="truncate block w-full"
