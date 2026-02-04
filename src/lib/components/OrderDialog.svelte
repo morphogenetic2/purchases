@@ -292,7 +292,7 @@
                 <Button
                     variant="outline"
                     onclick={() => (isOpen = false)}
-                    class="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                    class="bg-orange-200 text-black border-orange-300 hover:bg-orange-300 hover:text-black"
                 >
                     Cancel
                 </Button>
