@@ -2,6 +2,10 @@
 
 Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
 
+## 🚀 Deployment
+
+**[👉 Click here for the Step-by-Step Deployment Guide (No Coding Required)](./DEPLOYMENT.md)**
+
 ## Creating a project
 
 If you're seeing this, you've probably already done this step. Congrats!
