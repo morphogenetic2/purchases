@@ -15,27 +15,35 @@ export async function GET() {
 }
 
 export async function POST({ request }) {
-    const order = await request.json();
+    const body = await request.json();
+    const isArray = Array.isArray(body);
+    let dataToSave;
 
-    // Ensure we don't save undefined/null explicitly where not wanted, though Supabase handles it.
-    // The client sends the full object usually.
+    // Helper to add UUID if missing
+    const addIdIfNeeded = (item: any) => {
+        const newItem = { ...item };
+        if (!newItem.id && typeof crypto !== "undefined" && crypto.randomUUID) {
+            newItem.id = crypto.randomUUID();
+        }
+        return newItem;
+    };
 
-    // ID Handling: Supabase will generate ID if we don't provide it on INSERT.
-    // However, the client logic often assumes an ID exists for optimistic UI updates.
-    // If the client provided an ID, use it. If not, let Supabase generate (or generate here).
-
-    const dataToSave = { ...order };
-
-    // Create random UUID if not present and this is a NEW order (not sure if strictly needed if DB default is uuid_generate_v4(), but specific logic in orderService had it)
-    if (!dataToSave.id && typeof crypto !== "undefined" && crypto.randomUUID) {
-        dataToSave.id = crypto.randomUUID();
+    if (isArray) {
+        dataToSave = body.map(addIdIfNeeded);
+    } else {
+        dataToSave = addIdIfNeeded(body);
     }
 
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
         .from('orders')
         .upsert(dataToSave)
-        .select()
-        .single();
+        .select();
+
+    if (!isArray) {
+        query = query.single();
+    }
+
+    const { data, error } = await query;
 
     if (error) {
         return json({ error: error.message }, { status: 500 });
