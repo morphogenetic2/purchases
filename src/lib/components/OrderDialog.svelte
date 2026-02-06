@@ -10,12 +10,19 @@
     import { orderService } from "$lib/services/orderService";
     import { Trash2 } from "lucide-svelte";
 
+    import { PREDEFINED_ORDERED_BY } from "$lib/constants";
     let {
         order = null,
         isOpen = $bindable(false),
         providers = [],
+        requesters = [],
         onSave,
     } = $props();
+
+    // Combine predefined defaults with dynamic ones
+    let requesterSuggestions = $derived(
+        Array.from(new Set([...PREDEFINED_ORDERED_BY, ...requesters])).sort()
+    );
 
     let isLoading = $state(false);
     let openProvider = $state(false);
@@ -205,8 +212,15 @@
                     <Input
                         id="ordered_by"
                         bind:value={formData.ordered_by}
+                        list="requester-list"
+                        placeholder="Select or type requester..."
                         class="bg-zinc-900 border-zinc-700"
                     />
+                    <datalist id="requester-list">
+                        {#each requesterSuggestions as req}
+                            <option value={req}></option>
+                        {/each}
+                    </datalist>
                 </div>
             </div>
 

@@ -1,140 +1,140 @@
 <script lang="ts">
-    import { invalidateAll } from "$app/navigation";
-    import OrderDialog from "$lib/components/OrderDialog.svelte";
-    import OrderToolbar from "$lib/components/OrderToolbar.svelte";
-    import OrderTable from "$lib/components/OrderTable.svelte";
-    import { OrderState } from "$lib/state/orderState.svelte";
-    import { orderService } from "$lib/services/orderService";
-    import { exportOrdersToExcel } from "$lib/utils/export";
-    import type { Order, RealtimeEventPayload } from "$lib/types";
-    import ExportDialog from "$lib/components/ExportDialog.svelte";
-    import { supabase } from "$lib/supabaseClient";
-    import ReceiveDialog from "$lib/components/ReceiveDialog.svelte";
+  import { invalidateAll } from "$app/navigation";
+  import OrderDialog from "$lib/components/OrderDialog.svelte";
+  import OrderToolbar from "$lib/components/OrderToolbar.svelte";
+  import OrderTable from "$lib/components/OrderTable.svelte";
+  import { OrderState } from "$lib/state/orderState.svelte";
+  import { orderService } from "$lib/services/orderService";
+  import { exportOrdersToExcel } from "$lib/utils/export";
+  import type { Order, RealtimeEventPayload } from "$lib/types";
+  import ExportDialog from "$lib/components/ExportDialog.svelte";
+  import { supabase } from "$lib/supabaseClient";
+  import ReceiveDialog from "$lib/components/ReceiveDialog.svelte";
 
-    let { data } = $props();
+  let { data } = $props();
 
-    // Initialize State
-    // svelte-ignore state_referenced_locally
-    let orderState = new OrderState((data.orders as Order[]) || []);
-    let isExportOpen = $state(false);
+  // Initialize State
+  // svelte-ignore state_referenced_locally
+  let orderState = new OrderState((data.orders as Order[]) || []);
+  let isExportOpen = $state(false);
 
-    // Sync state when data refreshes (e.g. after invalidateAll)
-    $effect(() => {
-        orderState.setOrders((data.orders as Order[]) || []);
-    });
+  // Sync state when data refreshes (e.g. after invalidateAll)
+  $effect(() => {
+    orderState.setOrders((data.orders as Order[]) || []);
+  });
 
-    // Realtime Subscription
-    $effect(() => {
-        const channel = supabase
-            .channel("table-db-changes")
-            .on(
-                "postgres_changes",
-                {
-                    event: "*",
-                    schema: "public",
-                    table: "orders",
-                },
-                (payload) => {
-                    orderState.handleRealtimeEvent(
-                        payload as unknown as RealtimeEventPayload<Order>,
-                    );
-                },
-            )
-            .subscribe();
+  // Realtime Subscription
+  $effect(() => {
+    const channel = supabase
+      .channel("table-db-changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "orders",
+        },
+        (payload) => {
+          orderState.handleRealtimeEvent(
+            payload as unknown as RealtimeEventPayload<Order>,
+          );
+        },
+      )
+      .subscribe();
 
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  });
 
-    // Reset pagination when search/filters change
-    $effect(() => {
-        // Track these values to trigger reset
-        const _ = orderState.searchTerm;
-        const __ = orderState.activeFilters;
-        orderState.setPage(1);
-    });
+  // Reset pagination when search/filters change
+  $effect(() => {
+    // Track these values to trigger reset
+    const _ = orderState.searchTerm;
+    const __ = orderState.activeFilters;
+    orderState.setPage(1);
+  });
 
-    // --- Actions ---
-    let isReceiveOpen = $state(false);
-    let receivingOrders = $state<Order[]>([]);
+  // --- Actions ---
+  let isReceiveOpen = $state(false);
+  let receivingOrders = $state<Order[]>([]);
 
-    async function handleQuickReceive(id: string) {
-        const order = orderState.rawOrders.find((o) => o.id === id);
-        if (order) {
-            receivingOrders = [order];
-            isReceiveOpen = true;
-        }
+  async function handleQuickReceive(id: string) {
+    const order = orderState.rawOrders.find((o) => o.id === id);
+    if (order) {
+      receivingOrders = [order];
+      isReceiveOpen = true;
     }
+  }
 
-    async function handleBulkReceiveRequest(ids: string[]) {
-        receivingOrders = orderState.rawOrders.filter((o) =>
-            ids.includes(o.id),
-        );
-        isReceiveOpen = true;
+  async function handleBulkReceiveRequest(ids: string[]) {
+    receivingOrders = orderState.rawOrders.filter((o) => ids.includes(o.id));
+    isReceiveOpen = true;
+  }
+
+  async function handleRevertReceive(id: string) {
+    if (!confirm("Revert to non-received?")) return;
+    const { error } = await orderService.revertReceive(id);
+    if (error) {
+      alert("Error updating order: " + error.message);
+    } else {
+      invalidateAll();
     }
+  }
 
-    async function handleRevertReceive(id: string) {
-        if (!confirm("Revert to non-received?")) return;
-        const { error } = await orderService.revertReceive(id);
-        if (error) {
-            alert("Error updating order: " + error.message);
-        } else {
-            invalidateAll();
-        }
-    }
+  function handleWipe() {
+    // This is triggered by the Toolbar component's success callback
+    invalidateAll();
+  }
 
-    function handleWipe() {
-        // This is triggered by the Toolbar component's success callback
-        invalidateAll();
-    }
+  // --- DIALOG Handling ---
+  let isSheetOpen = $state(false);
+  let editingOrder = $state<Order | null>(null);
 
-    // --- DIALOG Handling ---
-    let isSheetOpen = $state(false);
-    let editingOrder = $state<Order | null>(null);
+  function handleAdd() {
+    editingOrder = null;
+    isSheetOpen = true;
+  }
 
-    function handleAdd() {
-        editingOrder = null;
-        isSheetOpen = true;
-    }
-
-    function handleEdit(order: Order) {
-        editingOrder = order;
-        isSheetOpen = true;
-    }
+  function handleEdit(order: Order) {
+    editingOrder = order;
+    isSheetOpen = true;
+  }
 </script>
 
 <div class="min-h-screen bg-zinc-950 text-zinc-100 p-8 space-y-8">
-    <OrderToolbar
-        onExport={() => (isExportOpen = true)}
-        onNewOrder={handleAdd}
-        onWipe={handleWipe}
-    />
+  <OrderToolbar
+    onExport={() => (isExportOpen = true)}
+    onNewOrder={handleAdd}
+    onWipe={handleWipe}
+    requesters={orderState.filterOptions.requester}
+  />
 
-    <OrderTable
-        state={orderState}
-        onEdit={handleEdit}
-        onReceive={handleQuickReceive}
-        onBulkReceive={handleBulkReceiveRequest}
-        onRevert={handleRevertReceive}
-    />
+  <OrderTable
+    state={orderState}
+    onEdit={handleEdit}
+    onReceive={handleQuickReceive}
+    onBulkReceive={handleBulkReceiveRequest}
+    onRevert={handleRevertReceive}
+  />
 </div>
 
 <ExportDialog
-    bind:open={isExportOpen}
-    state={orderState}
-    onExport={exportOrdersToExcel}
+  bind:open={isExportOpen}
+  state={orderState}
+  onExport={exportOrdersToExcel}
 />
 
 <OrderDialog
-    bind:isOpen={isSheetOpen}
-    order={editingOrder}
-    providers={orderState.filterOptions.provider}
-    onSave={() => invalidateAll()}
+  bind:isOpen={isSheetOpen}
+  order={editingOrder}
+  providers={orderState.filterOptions.provider}
+  requesters={orderState.filterOptions.requester}
+  onSave={() => invalidateAll()}
 />
 
 <ReceiveDialog
-    bind:isOpen={isReceiveOpen}
-    orders={receivingOrders}
-    onSave={() => invalidateAll()}
+  bind:isOpen={isReceiveOpen}
+  orders={receivingOrders}
+  onSave={() => invalidateAll()}
 />
