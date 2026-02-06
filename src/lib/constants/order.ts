@@ -37,7 +37,7 @@ export const GROUP_BY_LABELS: Record<GroupByOption, string> = {
 
 // Default pagination
 export const PAGINATION = {
-    DEFAULT_PAGE_SIZE: 50,
+    DEFAULT_PAGE_SIZE: 250,
     PAGE_SIZE_OPTIONS: [25, 50, 100, 250, 500, 1000, 10000] as const,
 } as const;
 

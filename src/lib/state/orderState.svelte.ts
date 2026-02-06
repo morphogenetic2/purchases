@@ -18,7 +18,7 @@ export class OrderState {
     rawOrders = $state<Order[]>([]);
     searchTerm = $state("");
     sortDirection = $state("desc");
-    groupBy = $state<GroupByOption>(GROUP_BY_OPTIONS.NONE);
+    groupBy = $state<GroupByOption>(GROUP_BY_OPTIONS.DATE);
     selectedIds = new SvelteSet<string>();
 
     // Pagination
