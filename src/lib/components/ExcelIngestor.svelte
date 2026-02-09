@@ -24,9 +24,11 @@
   let fileInput: HTMLInputElement;
   let parseResult = $state<ParseResult | null>(null);
   let mapping: Record<string, string> = $state({});
-  let isOpen = $state(false);
+  let isFileSelectOpen = $state(false);
+  let isMappingOpen = $state(false);
   let isUploading = $state(false);
   let forceNew = $state(false);
+  let isDragging = $state(false);
 
   let { requesters = [] } = $props();
 
@@ -42,9 +44,7 @@
   let headers = $derived(parseResult?.headers ?? []);
   let previewData = $derived(parseResult?.previewData ?? []);
 
-  async function handleFile(e: Event) {
-    const target = e.target as HTMLInputElement;
-    const file = target.files?.[0];
+  async function processFile(file: File) {
     if (!file) return;
 
     try {
@@ -52,10 +52,43 @@
       parseResult = parseExcelBuffer(binaryString);
       mapping = { ...parseResult.autoMapping };
       forceNew = true;
-      isOpen = true;
+      isFileSelectOpen = false; // Close file selection modal
+      isMappingOpen = true; // Open mapping modal
     } catch (err) {
       console.error("Error parsing file:", err);
       alert("Error reading Excel file");
+    }
+  }
+
+  async function handleFile(e: Event) {
+    const target = e.target as HTMLInputElement;
+    const file = target.files?.[0];
+    if (file) {
+      await processFile(file);
+    }
+    // Reset file input
+    if (fileInput) fileInput.value = "";
+  }
+
+  function handleDragOver(e: DragEvent) {
+    e.preventDefault();
+    isDragging = true;
+  }
+
+  function handleDragLeave(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+  }
+
+  async function handleDrop(e: DragEvent) {
+    e.preventDefault();
+    isDragging = false;
+
+    const file = e.dataTransfer?.files?.[0];
+    if (file && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls"))) {
+      await processFile(file);
+    } else {
+      alert("Please drop an Excel file (.xlsx or .xls)");
     }
   }
 
@@ -98,7 +131,7 @@
       alert("Error: " + (err.message || "Unknown error occurred"));
     } finally {
       isUploading = false;
-      isOpen = false;
+      isMappingOpen = false;
       if (fileInput) fileInput.value = "";
     }
   }
@@ -113,7 +146,7 @@
     class="hidden"
   />
   <Button
-    onclick={() => fileInput.click()}
+    onclick={() => (isFileSelectOpen = true)}
     variant="outline"
     class="bg-zinc-900 text-zinc-300 border-dashed border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800 hover:text-white"
   >
@@ -121,7 +154,89 @@
   </Button>
 </div>
 
-<Dialog.Root bind:open={isOpen}>
+<!-- File Selection Modal with Drag & Drop -->
+<Dialog.Root bind:open={isFileSelectOpen}>
+  <Dialog.Content
+    class="sm:max-w-[600px] bg-zinc-900 border-zinc-800 text-zinc-100"
+  >
+    <Dialog.Header>
+      <Dialog.Title>Import Orders</Dialog.Title>
+      <Dialog.Description class="text-zinc-400">
+        Drop your Excel file or browse to select
+      </Dialog.Description>
+    </Dialog.Header>
+
+    <div class="py-8">
+      <div
+        role="button"
+        tabindex="0"
+        ondragover={handleDragOver}
+        ondragleave={handleDragLeave}
+        ondrop={handleDrop}
+        onclick={() => fileInput.click()}
+        onkeydown={(e) => e.key === "Enter" && fileInput.click()}
+        class="relative group cursor-pointer transition-all duration-300 ease-in-out rounded-lg border-2 border-dashed p-12 text-center
+          {isDragging
+          ? 'border-emerald-500 bg-emerald-950/40 scale-[1.02]'
+          : 'border-zinc-700 bg-zinc-900/50 hover:border-emerald-600 hover:bg-zinc-900'}"
+      >
+        <!-- Gradient overlay on hover -->
+        <div
+          class="absolute inset-0 rounded-lg bg-gradient-to-br from-emerald-500/5 to-zinc-900/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        ></div>
+
+        <div class="relative z-10 flex flex-col items-center gap-4">
+          <!-- Icon with animation -->
+          <div
+            class="p-4 rounded-full bg-zinc-800/50 group-hover:bg-emerald-900/30 transition-all duration-300
+            {isDragging ? 'bg-emerald-900/50 scale-110' : ''}"
+          >
+            <Upload
+              class="h-10 w-10 text-zinc-400 group-hover:text-emerald-400 transition-colors duration-300
+              {isDragging ? 'text-emerald-400 animate-bounce' : ''}"
+            />
+          </div>
+
+          <!-- Primary text -->
+          <div class="space-y-2">
+            <p
+              class="text-xl font-medium text-zinc-200 group-hover:text-white transition-colors duration-300"
+            >
+              {isDragging ? "Drop your file here" : "Drop Excel file here"}
+            </p>
+            <p
+              class="text-sm text-zinc-500 group-hover:text-zinc-400 transition-colors duration-300"
+            >
+              or
+            </p>
+          </div>
+
+          <!-- Browse button -->
+          <Button
+            variant="outline"
+            class="relative bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-emerald-500 hover:bg-zinc-800 hover:text-emerald-400 transition-all duration-300
+              {isDragging ? 'border-emerald-500 bg-zinc-800' : ''}"
+            onclick={(e) => {
+              e.stopPropagation();
+              fileInput.click();
+            }}
+          >
+            <Upload class="mr-2 h-4 w-4" />
+            Click to Browse
+          </Button>
+
+          <!-- Supported formats -->
+          <p class="text-xs text-zinc-600 mt-2">
+            Supported formats: .xlsx, .xls
+          </p>
+        </div>
+      </div>
+    </div>
+  </Dialog.Content>
+</Dialog.Root>
+
+<!-- Column Mapping Modal -->
+<Dialog.Root bind:open={isMappingOpen}>
   <Dialog.Content
     class="sm:max-w-[800px] bg-zinc-900 border-zinc-800 text-zinc-100 p-0 overflow-hidden flex flex-col max-h-[90vh]"
   >
@@ -227,7 +342,7 @@
     <Dialog.Footer class="p-6 pt-4 border-t border-zinc-800">
       <Button
         variant="secondary"
-        onclick={() => (isOpen = false)}
+        onclick={() => (isMappingOpen = false)}
         class="bg-zinc-800 text-zinc-100 hover:bg-zinc-700">Cancel</Button
       >
       <Button
