@@ -17,7 +17,6 @@ export async function GET() {
 export async function POST({ request }) {
     const body = await request.json();
     const isArray = Array.isArray(body);
-    let dataToSave;
 
     // Helper to add UUID if missing
     const addIdIfNeeded = (item: any) => {
@@ -28,22 +27,14 @@ export async function POST({ request }) {
         return newItem;
     };
 
-    if (isArray) {
-        dataToSave = body.map(addIdIfNeeded);
-    } else {
-        dataToSave = addIdIfNeeded(body);
-    }
+    const dataToSave = isArray ? body.map(addIdIfNeeded) : addIdIfNeeded(body);
 
-    let query = supabaseAdmin
+    const query = supabaseAdmin
         .from('orders')
         .upsert(dataToSave)
         .select();
 
-    if (!isArray) {
-        query = query.single();
-    }
-
-    const { data, error } = await query;
+    const { data, error } = isArray ? await query : await query.single();
 
     if (error) {
         return json({ error: error.message }, { status: 500 });

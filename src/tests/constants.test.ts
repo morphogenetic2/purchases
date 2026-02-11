@@ -48,7 +48,7 @@ describe('Constants', () => {
 
     describe('PAGINATION', () => {
         it('should have default page size', () => {
-            expect(PAGINATION.DEFAULT_PAGE_SIZE).toBe(50);
+            expect(PAGINATION.DEFAULT_PAGE_SIZE).toBe(250);
         });
 
         it('should have page size options', () => {

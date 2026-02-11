@@ -1,21 +1,25 @@
 import { ORDER_STATUS } from "$lib/constants";
 import type { Order } from "$lib/types";
 
-/**
- * Helper to get today's date in ISO format (YYYY-MM-DD)
- */
-function getTodayISO(): string {
-    return new Date().toISOString().split("T")[0];
+interface ReceiveOptions {
+    receivedDate?: string;
+    storageLocation?: string;
 }
 
 export const orderService = {
     /**
      * Mark a single order as received
      */
-    async quickReceive(id: string) {
+    async quickReceive(id: string, options?: ReceiveOptions) {
+        const payload = {
+            ids: [id],
+            ...(options?.receivedDate ? { receivedDate: options.receivedDate } : {}),
+            ...(options?.storageLocation ? { storageLocation: options.storageLocation } : {}),
+        };
+
         const response = await fetch('/api/orders/receive', {
             method: 'POST',
-            body: JSON.stringify({ ids: [id] }),
+            body: JSON.stringify(payload),
             headers: { 'Content-Type': 'application/json' }
         });
         return handleResponse(response);
@@ -44,12 +48,18 @@ export const orderService = {
     /**
      * Mark multiple orders as received in a single DB call
      */
-    async bulkReceive(ids: string[]) {
+    async bulkReceive(ids: string[], options?: ReceiveOptions) {
         if (ids.length === 0) return { data: null, error: null };
+
+        const payload = {
+            ids,
+            ...(options?.receivedDate ? { receivedDate: options.receivedDate } : {}),
+            ...(options?.storageLocation ? { storageLocation: options.storageLocation } : {}),
+        };
 
         const response = await fetch('/api/orders/receive', {
             method: 'POST',
-            body: JSON.stringify({ ids }),
+            body: JSON.stringify(payload),
             headers: { 'Content-Type': 'application/json' }
         });
         return handleResponse(response);

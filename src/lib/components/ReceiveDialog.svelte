@@ -48,13 +48,22 @@
         try {
             // Partial receive logic just for single order
             if (singleOrder) {
-                if (receiveQuantity > maxQuantity) {
+                if (maxQuantity <= 0) {
+                    throw new Error("This order is already fully received");
+                }
+
+                const quantityToReceive = Number(receiveQuantity);
+                if (!Number.isFinite(quantityToReceive) || quantityToReceive <= 0) {
+                    throw new Error("Quantity to receive must be at least 1");
+                }
+
+                if (quantityToReceive > maxQuantity) {
                     throw new Error(
                         `Cannot receive more than remaining quantity (${maxQuantity})`,
                     );
                 }
                 const newTotalReceived =
-                    (singleOrder.quantity_received || 0) + receiveQuantity;
+                    (singleOrder.quantity_received || 0) + quantityToReceive;
                 const isFullyReceived =
                     newTotalReceived >= singleOrder.quantity;
 
@@ -77,28 +86,13 @@
                         is_received: isFullyReceived,
                     },
                 );
-                if (storageLocation) {
-                    // update storage location if provided
-                    await orderService.updateOrder(singleOrder.id, {
-                        storage_location: storageLocation,
-                    });
-                }
                 if (error) throw error;
             } else {
                 // Bulk receive (always full)
                 const ids = orders.map((o: Order) => o.id);
-                const { error } = await orderService.bulkUpdate(ids, {
-                    status: ORDER_STATUS.RECEIVED,
-                    received_date: receivedDate,
-                    storage_location: storageLocation,
-                    is_received: true,
-                    // We should theoretically update quantity_received to quantity for all,
-                    // but we can't do that in one static bulk update unless all have same quantity?
-                    // Wait. bulkUpdate takes a single object of updates.
-                    // If we want to set quantity_received = quantity, we can't do it easily in one query if quantities differ.
-                    // For now, let's just set status and is_received.
-                    // Ideally we'd iterate or use a stored procedure.
-                    // For now, let's assume bulk receive implies full.
+                const { error } = await orderService.bulkReceive(ids, {
+                    receivedDate,
+                    storageLocation: storageLocation.trim() || undefined,
                 });
                 if (error) throw error;
             }

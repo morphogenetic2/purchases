@@ -96,6 +96,7 @@
     if (!parseResult) return;
 
     isUploading = true;
+    let didUploadSucceed = false;
 
     try {
       // Transform Excel data to orders
@@ -126,13 +127,16 @@
 
       alert("Success!");
       await invalidateAll();
+      didUploadSucceed = true;
     } catch (err: any) {
       console.error("Upload Error:", err);
       alert("Error: " + (err.message || "Unknown error occurred"));
     } finally {
       isUploading = false;
-      isMappingOpen = false;
-      if (fileInput) fileInput.value = "";
+      if (didUploadSucceed) {
+        isMappingOpen = false;
+        if (fileInput) fileInput.value = "";
+      }
     }
   }
 </script>
