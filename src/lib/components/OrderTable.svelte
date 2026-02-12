@@ -1,10 +1,11 @@
 <script lang="ts">
     import * as Table from "$lib/components/ui/table";
     import * as Card from "$lib/components/ui/card";
+    import * as Dialog from "$lib/components/ui/dialog";
     import { Input } from "$lib/components/ui/input";
-    import { buttonVariants } from "$lib/components/ui/button";
+    import { Button, buttonVariants } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
-    import { X, Layers } from "lucide-svelte";
+    import { X, Layers, Bookmark } from "lucide-svelte";
     import { resizable } from "$lib/actions/resizable";
     import ColumnFilter from "$lib/components/ColumnFilter.svelte";
     import ColumnSelector from "$lib/components/ColumnSelector.svelte";
@@ -123,6 +124,54 @@
         exportOrdersToExcel(selectedOrders);
         orderState.clearSelection();
     }
+
+    let isSavePresetDialogOpen = $state(false);
+    let presetName = $state("");
+
+    function applyBuiltInPreset(
+        presetId: "requested_this_week" | "pending_by_requester",
+    ) {
+        orderState.applyBuiltInPreset(presetId);
+        addToast("Preset applied.", "success");
+    }
+
+    function applySavedPreset(id: string) {
+        const found = orderState.applySavedPreset(id);
+        if (found) {
+            addToast("Preset applied.", "success");
+            return;
+        }
+        addToast("Preset not found.", "error");
+    }
+
+    function openSavePresetDialog() {
+        presetName = "";
+        isSavePresetDialogOpen = true;
+    }
+
+    function savePreset() {
+        const trimmed = presetName.trim();
+        if (!trimmed) {
+            addToast("Preset name is required.", "error");
+            return;
+        }
+
+        try {
+            const mode = orderState.saveCurrentPreset(trimmed);
+            addToast(
+                mode === "updated"
+                    ? "Preset updated."
+                    : "Preset saved.",
+                "success",
+            );
+            isSavePresetDialogOpen = false;
+        } catch (error: unknown) {
+            const message = error instanceof Error
+                ? error.message
+                : "Failed to save preset.";
+            addToast(message, "error");
+        }
+    }
 </script>
 
 <Card.Root class="bg-zinc-900 border-zinc-800">
@@ -190,6 +239,78 @@
                                 {/if}
                             </DropdownMenu.Item>
                         {/each}
+                    </DropdownMenu.Content>
+                </DropdownMenu.Root>
+
+                <DropdownMenu.Root>
+                    <DropdownMenu.Trigger
+                        class={buttonVariants({
+                            variant: "outline",
+                            size: "sm",
+                            class: "bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300",
+                        })}
+                    >
+                        <Bookmark class="h-4 w-4 mr-2" />
+                        Presets
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content class="bg-zinc-950 border-zinc-800 min-w-[240px]">
+                        <DropdownMenu.Label class="text-zinc-500 text-xs uppercase tracking-wide">
+                            Quick Presets
+                        </DropdownMenu.Label>
+                        <DropdownMenu.Item
+                            class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer"
+                            onclick={() =>
+                                applyBuiltInPreset("requested_this_week")}
+                        >
+                            Requested This Week
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                            class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer"
+                            onclick={() =>
+                                applyBuiltInPreset("pending_by_requester")}
+                        >
+                            Pending by Requester
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item
+                            class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer"
+                            onclick={() => {
+                                orderState.resetFilters();
+                                addToast("Filters reset.", "info");
+                            }}
+                        >
+                            Reset Filters
+                        </DropdownMenu.Item>
+
+                        <DropdownMenu.Separator class="bg-zinc-800" />
+                        <DropdownMenu.Label class="text-zinc-500 text-xs uppercase tracking-wide">
+                            Saved Presets
+                        </DropdownMenu.Label>
+
+                        {#if orderState.customPresets.length === 0}
+                            <DropdownMenu.Item
+                                disabled
+                                class="text-zinc-500"
+                            >
+                                No saved presets
+                            </DropdownMenu.Item>
+                        {:else}
+                            {#each orderState.customPresets as preset (preset.id)}
+                                <DropdownMenu.Item
+                                    class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer"
+                                    onclick={() => applySavedPreset(preset.id)}
+                                >
+                                    {preset.name}
+                                </DropdownMenu.Item>
+                            {/each}
+                        {/if}
+
+                        <DropdownMenu.Separator class="bg-zinc-800" />
+                        <DropdownMenu.Item
+                            class="text-emerald-400 focus:bg-zinc-800 focus:text-emerald-300 cursor-pointer"
+                            onclick={openSavePresetDialog}
+                        >
+                            Save Current as Preset
+                        </DropdownMenu.Item>
                     </DropdownMenu.Content>
                 </DropdownMenu.Root>
 
@@ -416,3 +537,48 @@
     confirmVariant="destructive"
     onConfirm={confirmBulkDelete}
 />
+
+<Dialog.Root bind:open={isSavePresetDialogOpen}>
+    <Dialog.Content class="sm:max-w-[425px] bg-zinc-950 border-zinc-800 text-zinc-100">
+        <Dialog.Header>
+            <Dialog.Title>Save Filter Preset</Dialog.Title>
+            <Dialog.Description class="text-zinc-400">
+                Save current search, filters, and group mode for quick reuse.
+            </Dialog.Description>
+        </Dialog.Header>
+
+        <div class="grid gap-2 py-2">
+            <label for="preset-name" class="text-sm text-zinc-300">
+                Preset Name
+            </label>
+            <Input
+                id="preset-name"
+                bind:value={presetName}
+                placeholder="e.g. Requested This Week - ARN"
+                class="bg-zinc-900 border-zinc-700 text-zinc-100"
+                onkeydown={(event) => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        savePreset();
+                    }
+                }}
+            />
+        </div>
+
+        <Dialog.Footer>
+            <Button
+                variant="outline"
+                onclick={() => (isSavePresetDialogOpen = false)}
+                class="bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
+            >
+                Cancel
+            </Button>
+            <Button
+                onclick={savePreset}
+                class="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+                Save Preset
+            </Button>
+        </Dialog.Footer>
+    </Dialog.Content>
+</Dialog.Root>

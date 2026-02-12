@@ -39,4 +39,8 @@ export function exportOrdersToExcel(orders: Order[]) {
 
     const dateStr = new Date().toISOString().split("T")[0];
     XLSX.writeFile(wb, `orders_export_${dateStr}.xlsx`);
+    addToast(
+        `Exported ${orders.length} ${orders.length === 1 ? "row" : "rows"}.`,
+        "success",
+    );
 }

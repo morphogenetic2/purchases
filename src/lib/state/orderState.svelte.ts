@@ -1,6 +1,7 @@
 import type { Order, Column, RealtimeEventPayload } from "$lib/types";
 import { SvelteSet } from "svelte/reactivity";
 import {
+    ORDER_STATUS,
     GROUP_BY_OPTIONS,
     PAGINATION,
     type GroupByOption
@@ -14,6 +15,29 @@ export interface OrderGroup {
     orders: Order[];
 }
 
+export interface ActiveFilters {
+    requester: string[];
+    status: string[];
+    date: string[];
+    provider: string[];
+}
+
+export interface FilterPresetConfig {
+    searchTerm: string;
+    activeFilters: ActiveFilters;
+    groupBy: GroupByOption;
+}
+
+export interface SavedFilterPreset {
+    id: string;
+    name: string;
+    config: FilterPresetConfig;
+}
+
+export type BuiltInPresetId =
+    | "requested_this_week"
+    | "pending_by_requester";
+
 const TABLE_PREFERENCES_KEY = "orders.tablePreferences.v1";
 
 interface TablePreferences {
@@ -26,6 +50,7 @@ interface TablePreferences {
     };
     pageSize?: number;
     groupBy?: GroupByOption;
+    customPresets?: SavedFilterPreset[];
 }
 
 export class OrderState {
@@ -38,6 +63,7 @@ export class OrderState {
     // Pagination
     currentPage = $state(1);
     pageSize = $state<number>(PAGINATION.DEFAULT_PAGE_SIZE);
+    customPresets = $state<SavedFilterPreset[]>([]);
 
     columns = $state<Column[]>([
         { id: "date_formatted", label: "Date", visible: true },
@@ -54,7 +80,7 @@ export class OrderState {
         { id: "actions", label: "Actions", visible: true },
     ]);
 
-    activeFilters = $state({
+    activeFilters = $state<ActiveFilters>({
         requester: [] as string[],
         status: [] as string[],
         date: [] as string[],
@@ -155,6 +181,137 @@ export class OrderState {
         this.currentPage = 1; // Reset to first page when changing page size
     }
 
+    private buildCurrentPresetConfig(): FilterPresetConfig {
+        return {
+            searchTerm: this.searchTerm,
+            activeFilters: {
+                requester: [...this.activeFilters.requester],
+                status: [...this.activeFilters.status],
+                date: [...this.activeFilters.date],
+                provider: [...this.activeFilters.provider],
+            },
+            groupBy: this.groupBy,
+        };
+    }
+
+    private applyPresetConfig(config: FilterPresetConfig) {
+        this.searchTerm = config.searchTerm;
+        this.activeFilters = {
+            requester: [...config.activeFilters.requester],
+            status: [...config.activeFilters.status],
+            date: [...config.activeFilters.date],
+            provider: [...config.activeFilters.provider],
+        };
+        this.groupBy = config.groupBy;
+        this.currentPage = 1;
+    }
+
+    resetFilters() {
+        this.applyPresetConfig({
+            searchTerm: "",
+            activeFilters: {
+                requester: [],
+                status: [],
+                date: [],
+                provider: [],
+            },
+            groupBy: GROUP_BY_OPTIONS.DATE,
+        });
+    }
+
+    applyBuiltInPreset(presetId: BuiltInPresetId) {
+        if (presetId === "requested_this_week") {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const day = (today.getDay() + 6) % 7; // Monday = 0
+            const weekStart = new Date(today);
+            weekStart.setDate(today.getDate() - day);
+
+            const weekEnd = new Date(weekStart);
+            weekEnd.setDate(weekStart.getDate() + 6);
+            weekEnd.setHours(23, 59, 59, 999);
+
+            const weekDates = this.filterOptions.date.filter((dateStr) => {
+                const d = new Date(`${dateStr}T00:00:00`);
+                return !isNaN(d.getTime()) && d >= weekStart && d <= weekEnd;
+            });
+
+            this.applyPresetConfig({
+                searchTerm: "",
+                activeFilters: {
+                    requester: [],
+                    status: [ORDER_STATUS.REQUESTED],
+                    date: weekDates,
+                    provider: [],
+                },
+                groupBy: GROUP_BY_OPTIONS.DATE,
+            });
+            return;
+        }
+
+        this.applyPresetConfig({
+            searchTerm: "",
+            activeFilters: {
+                requester: [],
+                status: [
+                    ORDER_STATUS.REQUESTED,
+                    ORDER_STATUS.ORDERED,
+                    ORDER_STATUS.PARTIALLY_RECEIVED,
+                ],
+                date: [],
+                provider: [],
+            },
+            groupBy: GROUP_BY_OPTIONS.REQUESTER,
+        });
+    }
+
+    applySavedPreset(id: string): boolean {
+        const preset = this.customPresets.find((item) => item.id === id);
+        if (!preset) return false;
+
+        this.applyPresetConfig(preset.config);
+        return true;
+    }
+
+    saveCurrentPreset(name: string): "created" | "updated" {
+        const trimmed = name.trim();
+        if (!trimmed) {
+            throw new Error("Preset name is required");
+        }
+
+        const config = this.buildCurrentPresetConfig();
+        const existingIndex = this.customPresets.findIndex(
+            (preset) => preset.name.toLowerCase() === trimmed.toLowerCase(),
+        );
+
+        if (existingIndex !== -1) {
+            const existing = this.customPresets[existingIndex];
+            this.customPresets[existingIndex] = {
+                ...existing,
+                name: trimmed,
+                config,
+            };
+            this.savePreferences();
+            return "updated";
+        }
+
+        const id = typeof crypto !== "undefined" && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+        this.customPresets = [
+            ...this.customPresets,
+            {
+                id,
+                name: trimmed,
+                config,
+            },
+        ];
+        this.savePreferences();
+        return "created";
+    }
+
     loadPreferences() {
         if (typeof window === "undefined") return;
 
@@ -217,6 +374,49 @@ export class OrderState {
             if (validGroupBy) {
                 this.groupBy = parsed.groupBy as GroupByOption;
             }
+
+            if (Array.isArray(parsed.customPresets)) {
+                this.customPresets = parsed.customPresets.filter((preset) =>
+                    preset &&
+                    typeof preset.id === "string" &&
+                    typeof preset.name === "string" &&
+                    preset.config &&
+                    typeof preset.config.searchTerm === "string" &&
+                    preset.config.activeFilters &&
+                    Array.isArray(preset.config.activeFilters.requester) &&
+                    Array.isArray(preset.config.activeFilters.status) &&
+                    Array.isArray(preset.config.activeFilters.date) &&
+                    Array.isArray(preset.config.activeFilters.provider) &&
+                    Object.values(GROUP_BY_OPTIONS).includes(
+                        preset.config.groupBy as GroupByOption,
+                    ))
+                    .map((preset) => ({
+                        id: preset.id,
+                        name: preset.name,
+                        config: {
+                            searchTerm: preset.config.searchTerm,
+                            activeFilters: {
+                                requester:
+                                    preset.config.activeFilters.requester
+                                        .filter((value): value is string =>
+                                            typeof value === "string"),
+                                status:
+                                    preset.config.activeFilters.status
+                                        .filter((value): value is string =>
+                                            typeof value === "string"),
+                                date:
+                                    preset.config.activeFilters.date
+                                        .filter((value): value is string =>
+                                            typeof value === "string"),
+                                provider:
+                                    preset.config.activeFilters.provider
+                                        .filter((value): value is string =>
+                                            typeof value === "string"),
+                            },
+                            groupBy: preset.config.groupBy as GroupByOption,
+                        },
+                    }));
+            }
         } catch (error) {
             console.warn("Failed to load table preferences:", error);
         }
@@ -238,6 +438,20 @@ export class OrderState {
             },
             pageSize: this.pageSize,
             groupBy: this.groupBy,
+            customPresets: this.customPresets.map((preset) => ({
+                id: preset.id,
+                name: preset.name,
+                config: {
+                    searchTerm: preset.config.searchTerm,
+                    activeFilters: {
+                        requester: [...preset.config.activeFilters.requester],
+                        status: [...preset.config.activeFilters.status],
+                        date: [...preset.config.activeFilters.date],
+                        provider: [...preset.config.activeFilters.provider],
+                    },
+                    groupBy: preset.config.groupBy,
+                },
+            })),
         };
 
         try {
