@@ -1,5 +1,6 @@
 <script lang="ts">
     import { Input } from "$lib/components/ui/input";
+    import { addToast } from "$lib/state/toastState";
 
     let {
         value,
@@ -67,7 +68,7 @@
             await onUpdate(newValue);
         } catch (err: any) {
             console.error("Error saving:", err);
-            alert("Failed to save: " + err.message);
+            addToast("Failed to save: " + err.message, "error");
         } finally {
             isSaving = false;
             isEditing = false;

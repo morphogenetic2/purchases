@@ -7,12 +7,19 @@ const orderServiceMocks = vi.hoisted(() => ({
     updateOrder: vi.fn(),
     bulkReceive: vi.fn(),
 }));
+const toastMocks = vi.hoisted(() => ({
+    addToast: vi.fn(),
+}));
 
 vi.mock('$lib/services/orderService', () => ({
     orderService: {
         updateOrder: orderServiceMocks.updateOrder,
         bulkReceive: orderServiceMocks.bulkReceive,
     },
+}));
+
+vi.mock('$lib/state/toastState', () => ({
+    addToast: toastMocks.addToast,
 }));
 
 function makeOrder(overrides: Partial<Order> = {}): Order {
@@ -31,7 +38,6 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
 describe('ReceiveDialog', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.stubGlobal('alert', vi.fn());
         orderServiceMocks.updateOrder.mockResolvedValue({ data: {}, error: null });
         orderServiceMocks.bulkReceive.mockResolvedValue({ data: true, error: null });
     });
@@ -58,8 +64,9 @@ describe('ReceiveDialog', () => {
         );
 
         await waitFor(() => {
-            expect(globalThis.alert).toHaveBeenCalledWith(
+            expect(toastMocks.addToast).toHaveBeenCalledWith(
                 expect.stringContaining('at least 1'),
+                'error',
             );
         });
         expect(orderServiceMocks.updateOrder).not.toHaveBeenCalled();

@@ -15,12 +15,12 @@
         }
     }
 
-    function toggleAll() {
-        if (selected.length === options.length) {
-            selected = [];
-        } else {
-            selected = [...options];
-        }
+    function selectAll() {
+        selected = [...options];
+    }
+
+    function deselectAll() {
+        selected = [];
     }
 
     let isOpen = $state(false);
@@ -55,17 +55,27 @@
         class="w-[200px] p-0 bg-zinc-900 border-zinc-800 text-zinc-100"
         align="start"
     >
-        <div class="p-2 border-b border-zinc-800">
+        <div class="p-2 border-b border-zinc-800 space-y-1">
             <Button
                 variant="ghost"
                 size="sm"
                 class="w-full justify-start text-xs h-8"
-                onclick={toggleAll}
+                onclick={selectAll}
+                disabled={options.length === 0 ||
+                    selected.length === options.length}
             >
-                {selected.length === options.length
-                    ? "Deselect All"
-                    : "Select All"}
+                Select All
             </Button>
+            {#if selected.length > 0}
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    class="w-full justify-start text-xs h-8"
+                    onclick={deselectAll}
+                >
+                    Deselect All
+                </Button>
+            {/if}
         </div>
         <div class="max-h-[300px] overflow-y-auto p-1">
             {#each options as option}

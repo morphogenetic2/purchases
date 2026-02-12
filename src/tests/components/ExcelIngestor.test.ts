@@ -14,6 +14,9 @@ const excelMocks = vi.hoisted(() => ({
 const orderServiceMocks = vi.hoisted(() => ({
     insertOrders: vi.fn(),
 }));
+const toastMocks = vi.hoisted(() => ({
+    addToast: vi.fn(),
+}));
 
 vi.mock('$lib/excel', () => ({
     DB_FIELDS: [
@@ -31,6 +34,10 @@ vi.mock('$lib/services/orderService', () => ({
     orderService: {
         insertOrders: orderServiceMocks.insertOrders,
     },
+}));
+
+vi.mock('$lib/state/toastState', () => ({
+    addToast: toastMocks.addToast,
 }));
 
 async function openMappingModal(container: HTMLElement) {
@@ -59,7 +66,6 @@ async function openMappingModal(container: HTMLElement) {
 describe('ExcelIngestor', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        vi.stubGlobal('alert', vi.fn());
 
         excelMocks.readFileAsBinaryString.mockResolvedValue('binary-content');
         excelMocks.parseExcelBuffer.mockReturnValue({
@@ -105,7 +111,11 @@ describe('ExcelIngestor', () => {
         );
 
         await waitFor(() => {
-            expect(globalThis.alert).toHaveBeenCalledWith('Validation failed');
+            expect(toastMocks.addToast).toHaveBeenCalledWith(
+                'Validation failed',
+                'error',
+                6000,
+            );
         });
         expect(orderServiceMocks.insertOrders).not.toHaveBeenCalled();
         expect(screen.getByText('Map Columns')).toBeInTheDocument();

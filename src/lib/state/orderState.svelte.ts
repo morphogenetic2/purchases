@@ -14,6 +14,20 @@ export interface OrderGroup {
     orders: Order[];
 }
 
+const TABLE_PREFERENCES_KEY = "orders.tablePreferences.v1";
+
+interface TablePreferences {
+    columns?: Array<{ id: string; visible: boolean }>;
+    activeFilters?: {
+        requester?: string[];
+        status?: string[];
+        date?: string[];
+        provider?: string[];
+    };
+    pageSize?: number;
+    groupBy?: GroupByOption;
+}
+
 export class OrderState {
     rawOrders = $state<Order[]>([]);
     searchTerm = $state("");
@@ -49,6 +63,7 @@ export class OrderState {
 
     constructor(orders: Order[] = []) {
         this.rawOrders = orders;
+        this.loadPreferences();
     }
 
     visibleColumns = $derived(this.columns.filter(c => c.visible));
@@ -138,6 +153,101 @@ export class OrderState {
     setPageSize(size: number) {
         this.pageSize = size;
         this.currentPage = 1; // Reset to first page when changing page size
+    }
+
+    loadPreferences() {
+        if (typeof window === "undefined") return;
+
+        try {
+            const raw = window.localStorage.getItem(TABLE_PREFERENCES_KEY);
+            if (!raw) return;
+
+            const parsed = JSON.parse(raw) as TablePreferences;
+            if (!parsed || typeof parsed !== "object") return;
+
+            if (Array.isArray(parsed.columns)) {
+                const visibilityById = new Map(
+                    parsed.columns
+                        .filter((column) =>
+                            column &&
+                            typeof column.id === "string" &&
+                            typeof column.visible === "boolean")
+                        .map((column) => [column.id, column.visible]),
+                );
+
+                this.columns = this.columns.map((column) =>
+                    visibilityById.has(column.id)
+                        ? { ...column, visible: visibilityById.get(column.id)! }
+                        : column,
+                );
+            }
+
+            if (parsed.activeFilters && typeof parsed.activeFilters === "object") {
+                this.activeFilters = {
+                    requester: Array.isArray(parsed.activeFilters.requester)
+                        ? parsed.activeFilters.requester.filter((v): v is string =>
+                            typeof v === "string")
+                        : [],
+                    status: Array.isArray(parsed.activeFilters.status)
+                        ? parsed.activeFilters.status.filter((v): v is string =>
+                            typeof v === "string")
+                        : [],
+                    date: Array.isArray(parsed.activeFilters.date)
+                        ? parsed.activeFilters.date.filter((v): v is string =>
+                            typeof v === "string")
+                        : [],
+                    provider: Array.isArray(parsed.activeFilters.provider)
+                        ? parsed.activeFilters.provider.filter((v): v is string =>
+                            typeof v === "string")
+                        : [],
+                };
+            }
+
+            if (
+                typeof parsed.pageSize === "number" &&
+                Number.isFinite(parsed.pageSize) &&
+                parsed.pageSize > 0
+            ) {
+                this.pageSize = parsed.pageSize;
+            }
+
+            const validGroupBy = Object.values(GROUP_BY_OPTIONS).includes(
+                parsed.groupBy as GroupByOption,
+            );
+            if (validGroupBy) {
+                this.groupBy = parsed.groupBy as GroupByOption;
+            }
+        } catch (error) {
+            console.warn("Failed to load table preferences:", error);
+        }
+    }
+
+    savePreferences() {
+        if (typeof window === "undefined") return;
+
+        const payload: TablePreferences = {
+            columns: this.columns.map((column) => ({
+                id: column.id,
+                visible: column.visible,
+            })),
+            activeFilters: {
+                requester: [...this.activeFilters.requester],
+                status: [...this.activeFilters.status],
+                date: [...this.activeFilters.date],
+                provider: [...this.activeFilters.provider],
+            },
+            pageSize: this.pageSize,
+            groupBy: this.groupBy,
+        };
+
+        try {
+            window.localStorage.setItem(
+                TABLE_PREFERENCES_KEY,
+                JSON.stringify(payload),
+            );
+        } catch (error) {
+            console.warn("Failed to save table preferences:", error);
+        }
     }
 
     filterOptions = $derived.by(() => {

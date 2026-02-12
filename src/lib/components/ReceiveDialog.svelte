@@ -5,11 +5,12 @@
     import { Label } from "$lib/components/ui/label";
     import { ORDER_STATUS } from "$lib/constants";
     import { orderService } from "$lib/services/orderService";
+    import { addToast } from "$lib/state/toastState";
 
     import type { Order } from "$lib/types";
 
     let {
-        orders = [],
+        orders = [] as Order[],
         isOpen = $bindable(false),
         onSave,
     } = $props<{
@@ -67,41 +68,106 @@
                 const isFullyReceived =
                     newTotalReceived >= singleOrder.quantity;
 
-                const { error } = await orderService.updateOrder(
+                const previous = {
+                    status: singleOrder.status,
+                    received_date: singleOrder.received_date,
+                    quantity_received: singleOrder.quantity_received,
+                    storage_location: singleOrder.storage_location,
+                    is_received: singleOrder.is_received,
+                };
+                const optimisticUpdate = {
+                    status: isFullyReceived
+                        ? ORDER_STATUS.RECEIVED
+                        : ORDER_STATUS.PARTIALLY_RECEIVED,
+                    received_date: isFullyReceived ? receivedDate : undefined,
+                    quantity_received: newTotalReceived,
+                    storage_location:
+                        storageLocation || singleOrder.storage_location,
+                    is_received: isFullyReceived,
+                };
+                Object.assign(singleOrder, optimisticUpdate);
+
+                const { data, error } = await orderService.updateOrder(
                     singleOrder.id,
-                    {
-                        status: isFullyReceived
-                            ? ORDER_STATUS.RECEIVED
-                            : ORDER_STATUS.PARTIALLY_RECEIVED,
-                        received_date: isFullyReceived
-                            ? receivedDate
-                            : undefined, // Only set completion date if full? Or update latest? Let's use latest.
-                        // Actually user usually wants to track WHEN they received THIS batch.
-                        // But DB only has one received_date. Let's update it to "latest receipt".
-                        quantity_received: newTotalReceived,
-                        storage_location:
-                            storageLocation || singleOrder.storage_location, // Keep existing if not provided? Or overwrite?
-                        // If overwrite logic:
-                        // storage_location: storageLocation,
-                        is_received: isFullyReceived,
-                    },
+                    optimisticUpdate,
                 );
-                if (error) throw error;
+                if (error) {
+                    Object.assign(singleOrder, previous);
+                    throw error;
+                }
+
+                if (data && typeof data === "object") {
+                    Object.assign(singleOrder, data);
+                }
             } else {
                 // Bulk receive (always full)
                 const ids = orders.map((o: Order) => o.id);
+                const snapshots: Array<{
+                    order: Order;
+                    previous: {
+                        status: string;
+                        received_date?: string;
+                        quantity_received?: number;
+                        storage_location?: string;
+                        is_received?: boolean;
+                    };
+                }> = orders.map((order: Order) => ({
+                    order,
+                    previous: {
+                        status: order.status,
+                        received_date: order.received_date,
+                        quantity_received: order.quantity_received,
+                        storage_location: order.storage_location,
+                        is_received: order.is_received,
+                    },
+                }));
+
+                orders.forEach((order: Order) => {
+                    Object.assign(order, {
+                        status: ORDER_STATUS.RECEIVED,
+                        received_date: receivedDate,
+                        quantity_received: order.quantity,
+                        storage_location:
+                            storageLocation.trim() || order.storage_location,
+                        is_received: true,
+                    });
+                });
+
                 const { error } = await orderService.bulkReceive(ids, {
                     receivedDate,
                     storageLocation: storageLocation.trim() || undefined,
                 });
-                if (error) throw error;
+                if (error) {
+                    snapshots.forEach(
+                        ({
+                            order,
+                            previous,
+                        }: {
+                            order: Order;
+                            previous: {
+                                status: string;
+                                received_date?: string;
+                                quantity_received?: number;
+                                storage_location?: string;
+                                is_received?: boolean;
+                            };
+                        }) => {
+                        Object.assign(order, previous);
+                        },
+                    );
+                    throw error;
+                }
             }
 
             if (onSave) onSave();
+            addToast(
+                `Marked ${orders.length} ${orders.length === 1 ? "order" : "orders"} as received.`,
+                "success",
+            );
             isOpen = false;
         } catch (err: any) {
             console.error("Receive error:", err);
-            alert("Error: " + err.message);
+            addToast("Error: " + err.message, "error");
         } finally {
             isLoading = false;
         }
@@ -174,7 +240,7 @@
             <Button
                 variant="outline"
                 onclick={() => (isOpen = false)}
-                class="border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white"
+                class="bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
             >
                 Cancel
             </Button>

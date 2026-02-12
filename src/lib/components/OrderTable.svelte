@@ -2,9 +2,9 @@
     import * as Table from "$lib/components/ui/table";
     import * as Card from "$lib/components/ui/card";
     import { Input } from "$lib/components/ui/input";
-    import { Button, buttonVariants } from "$lib/components/ui/button";
+    import { buttonVariants } from "$lib/components/ui/button";
     import { Badge } from "$lib/components/ui/badge";
-    import { ChevronLeft, ChevronRight, X, Layers } from "lucide-svelte";
+    import { X, Layers } from "lucide-svelte";
     import { resizable } from "$lib/actions/resizable";
     import ColumnFilter from "$lib/components/ColumnFilter.svelte";
     import ColumnSelector from "$lib/components/ColumnSelector.svelte";
@@ -15,11 +15,7 @@
     import {
         GROUP_BY_OPTIONS,
         GROUP_BY_LABELS,
-        type GroupByOption,
     } from "$lib/constants";
-
-    import { getStatusColor } from "$lib/utils";
-    import { invalidateAll } from "$app/navigation";
 
     // Build groupByOptions from constants
     const groupByOptions = Object.values(GROUP_BY_OPTIONS).map((value) => ({
@@ -31,7 +27,9 @@
 
     import { Checkbox } from "$lib/components/ui/checkbox";
     import FloatingActionBar from "$lib/components/FloatingActionBar.svelte";
+    import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
     import { exportOrdersToExcel } from "$lib/utils/export";
+    import { addToast } from "$lib/state/toastState";
     import PaginationControls from "$lib/components/PaginationControls.svelte";
 
     const groupColors = [
@@ -43,7 +41,7 @@
         "bg-rose-950/20",
     ];
 
-    let { state, onEdit, onReceive, onBulkReceive, onRevert } = $props<{
+    let { state: orderState, onEdit, onReceive, onBulkReceive, onRevert } = $props<{
         state: OrderState;
         onEdit: (order: Order) => void;
         onReceive: (id: string) => void;
@@ -52,42 +50,78 @@
     }>();
 
     async function handleCellUpdate(id: string, field: string, value: any) {
-        const { error } = await orderService.updateOrder(id, {
+        const order = orderState.rawOrders.find((o: Order) => o.id === id);
+        if (!order) return;
+
+        const previousValue = (order as any)[field];
+        (order as any)[field] = value;
+
+        const { data, error } = await orderService.updateOrder(id, {
             [field]: value,
         });
 
         if (error) {
+            (order as any)[field] = previousValue;
             throw error;
         }
-        await invalidateAll();
+
+        if (data && typeof data === "object") {
+            Object.assign(order, data);
+        }
     }
 
-    async function handleBulkDelete() {
-        if (
-            !confirm(
-                `Delete ${state.selectedIds.size} orders? This cannot be undone.`,
-            )
-        )
-            return;
+    let isBulkDeleteConfirmOpen = $state(false);
 
-        const ids = Array.from(state.selectedIds) as string[];
+    function handleBulkDelete() {
+        if (orderState.selectedIds.size === 0) return;
+        isBulkDeleteConfirmOpen = true;
+    }
+
+    async function confirmBulkDelete() {
+        if (orderState.selectedIds.size === 0) return true;
+
+        const ids = Array.from(orderState.selectedIds) as string[];
+        const removedOrders: Array<{ order: Order; index: number }> = orderState.rawOrders
+            .map((order: Order, index: number) => ({ order, index }))
+            .filter(({ order }: { order: Order }) => ids.includes(order.id));
+
+        orderState.rawOrders = orderState.rawOrders.filter((order: Order) =>
+            !ids.includes(order.id)
+        );
+        orderState.clearSelection();
+
         const { error } = await orderService.bulkDelete(ids);
 
         if (error) {
-            alert("Error deleting orders: " + error.message);
-            return;
+            const restored = [...orderState.rawOrders];
+            removedOrders
+                .sort(
+                    (a: { index: number }, b: { index: number }) =>
+                        a.index - b.index,
+                )
+                .forEach(({ order, index }: { order: Order; index: number }) => {
+                    const insertionIndex = Math.min(index, restored.length);
+                    restored.splice(insertionIndex, 0, order);
+                });
+            orderState.rawOrders = restored;
+            ids.forEach((id) => orderState.selectedIds.add(id));
+            addToast("Error deleting orders: " + error.message, "error");
+            return false;
         }
 
-        state.clearSelection();
-        await invalidateAll();
+        addToast(
+            `${ids.length} ${ids.length === 1 ? "order" : "orders"} deleted.`,
+            "success",
+        );
+        return true;
     }
 
     function handleBulkExport() {
-        const selectedOrders = state.rawOrders.filter((o: Order) =>
-            state.selectedIds.has(o.id),
+        const selectedOrders = orderState.rawOrders.filter((o: Order) =>
+            orderState.selectedIds.has(o.id),
         );
         exportOrdersToExcel(selectedOrders);
-        state.clearSelection();
+        orderState.clearSelection();
     }
 </script>
 
@@ -100,13 +134,13 @@
                     <Input
                         type="search"
                         placeholder="Search orders..."
-                        bind:value={state.searchTerm}
+                        bind:value={orderState.searchTerm}
                         class="bg-zinc-950 border-zinc-700 text-zinc-100 pr-8"
                     />
-                    {#if state.searchTerm}
+                    {#if orderState.searchTerm}
                         <button
                             type="button"
-                            onclick={() => (state.searchTerm = "")}
+                            onclick={() => (orderState.searchTerm = "")}
                             class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-zinc-200 transition-colors rounded-sm hover:bg-zinc-800"
                             title="Clear search"
                         >
@@ -122,34 +156,34 @@
                             variant: "outline",
                             size: "sm",
                             class: `bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300 ${
-                                state.groupBy !== "none"
+                                orderState.groupBy !== "none"
                                     ? "border-emerald-500/50 text-emerald-400"
                                     : ""
                             }`,
                         })}
                     >
                         <Layers class="h-4 w-4 mr-2" />
-                        {state.groupBy === "none"
+                        {orderState.groupBy === "none"
                             ? "Group"
-                            : state.groupBy === "date"
+                            : orderState.groupBy === "date"
                               ? "By Date"
-                              : state.groupBy === "provider"
+                              : orderState.groupBy === "provider"
                                 ? "By Provider"
-                                : state.groupBy === "requester"
+                                : orderState.groupBy === "requester"
                                   ? "By Requester"
                                   : "By Status"}
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content class="bg-zinc-950 border-zinc-800">
                         {#each groupByOptions as option}
                             <DropdownMenu.Item
-                                class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer {state.groupBy ===
+                                class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer {orderState.groupBy ===
                                 option.value
                                     ? 'text-emerald-400'
                                     : ''}"
-                                onclick={() => state.setGroupBy(option.value)}
+                                onclick={() => orderState.setGroupBy(option.value)}
                             >
                                 {option.label}
-                                {#if state.groupBy === option.value}
+                                {#if orderState.groupBy === option.value}
                                     <span class="ml-auto text-emerald-500"
                                         >✓</span
                                     >
@@ -159,7 +193,7 @@
                     </DropdownMenu.Content>
                 </DropdownMenu.Root>
 
-                <ColumnSelector {state} />
+                <ColumnSelector state={orderState} />
             </div>
         </div>
     </Card.Header>
@@ -170,20 +204,20 @@
                     <Table.Row class="border-zinc-800 hover:bg-transparent">
                         <Table.Head class="w-[32px] px-1 text-center">
                             <Checkbox
-                                checked={state.paginatedOrders.length > 0 &&
-                                    state.paginatedOrders.every((o: Order) =>
-                                        state.selectedIds.has(o.id),
+                                checked={orderState.paginatedOrders.length > 0 &&
+                                    orderState.paginatedOrders.every((o: Order) =>
+                                        orderState.selectedIds.has(o.id),
                                     )}
                                 onCheckedChange={() =>
-                                    state.toggleAll(
-                                        state.paginatedOrders.map(
+                                    orderState.toggleAll(
+                                        orderState.paginatedOrders.map(
                                             (o: Order) => o.id,
                                         ),
                                     )}
                                 class="border-zinc-600 data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
                             />
                         </Table.Head>
-                        {#each state.visibleColumns as col (col.id)}
+                        {#each orderState.visibleColumns as col (col.id)}
                             {#if col.id === "date_formatted"}
                                 <th
                                     use:resizable
@@ -192,19 +226,19 @@
                                     <div class="flex items-center gap-0.5">
                                         <ColumnFilter
                                             title="Date"
-                                            options={state.filterOptions.date}
+                                            options={orderState.filterOptions.date}
                                             bind:selected={
-                                                state.activeFilters.date
+                                                orderState.activeFilters.date
                                             }
                                         />
                                         <button
-                                            onclick={() => state.toggleSort()}
+                                            onclick={() => orderState.toggleSort()}
                                             class="flex items-center hover:text-white transition-colors"
                                             title="Toggle Sort"
                                         >
                                             <span
                                                 class="text-[10px] opacity-70 flex-shrink-0"
-                                                >{state.sortDirection === "asc"
+                                                >{orderState.sortDirection === "asc"
                                                     ? "↑"
                                                     : "↓"}</span
                                             >
@@ -224,9 +258,9 @@
                                 >
                                     <ColumnFilter
                                         title="Provider"
-                                        options={state.filterOptions.provider}
+                                        options={orderState.filterOptions.provider}
                                         bind:selected={
-                                            state.activeFilters.provider
+                                            orderState.activeFilters.provider
                                         }
                                     />
                                 </th>
@@ -243,9 +277,9 @@
                                 >
                                     <ColumnFilter
                                         title="Requester"
-                                        options={state.filterOptions.requester}
+                                        options={orderState.filterOptions.requester}
                                         bind:selected={
-                                            state.activeFilters.requester
+                                            orderState.activeFilters.requester
                                         }
                                     />
                                 </th>
@@ -256,9 +290,9 @@
                                 >
                                     <ColumnFilter
                                         title="Status"
-                                        options={state.filterOptions.status}
+                                        options={orderState.filterOptions.status}
                                         bind:selected={
-                                            state.activeFilters.status
+                                            orderState.activeFilters.status
                                         }
                                     />
                                 </th>
@@ -284,28 +318,28 @@
                     </Table.Row>
                 </Table.Header>
                 <Table.Body>
-                    {#if state.filteredOrders.length === 0}
+                    {#if orderState.filteredOrders.length === 0}
                         <Table.Row>
                             <Table.Cell
-                                colspan={state.visibleColumns.length + 1}
+                                colspan={orderState.visibleColumns.length + 1}
                                 class="h-24 text-center text-zinc-500"
                             >
                                 No orders found.
                             </Table.Cell>
                         </Table.Row>
                     {:else}
-                        {#each state.groupedOrders as group, i (group.key)}
+                        {#each orderState.groupedOrders as group, i (group.key)}
                             {@const rowColor =
-                                state.groupBy !== "none"
+                                orderState.groupBy !== "none"
                                     ? groupColors[i % groupColors.length]
                                     : ""}
                             <!-- Group Header -->
-                            {#if state.groupBy !== "none"}
+                            {#if orderState.groupBy !== "none"}
                                 <Table.Row
                                     class="bg-zinc-800/50 border-zinc-700 hover:bg-zinc-800/50"
                                 >
                                     <Table.Cell
-                                        colspan={state.visibleColumns.length +
+                                        colspan={orderState.visibleColumns.length +
                                             1}
                                         class="py-2 px-4"
                                     >
@@ -332,11 +366,11 @@
                             {#each group.orders as order (order.id)}
                                 <OrderRow
                                     rowClass={rowColor}
-                                    isSelected={state.selectedIds.has(order.id)}
+                                    isSelected={orderState.selectedIds.has(order.id)}
                                     onToggleSelect={() =>
-                                        state.toggleSelection(order.id)}
+                                        orderState.toggleSelection(order.id)}
                                     {order}
-                                    visibleColumns={state.visibleColumns}
+                                    visibleColumns={orderState.visibleColumns}
                                     {onEdit}
                                     {onReceive}
                                     {onRevert}
@@ -351,25 +385,34 @@
 
         <!-- Pagination Footer -->
         <!-- Pagination Footer -->
-        {#if state.filteredOrders.length > 0}
+        {#if orderState.filteredOrders.length > 0}
             <PaginationControls
-                currentPage={state.currentPage}
-                totalPages={state.totalPages}
-                pageSize={state.pageSize}
-                totalItems={state.pageInfo.total}
-                startItem={state.pageInfo.start}
-                endItem={state.pageInfo.end}
-                onPageChange={(page) => state.setPage(page)}
-                onPageSizeChange={(size) => state.setPageSize(size)}
+                currentPage={orderState.currentPage}
+                totalPages={orderState.totalPages}
+                pageSize={orderState.pageSize}
+                totalItems={orderState.pageInfo.total}
+                startItem={orderState.pageInfo.start}
+                endItem={orderState.pageInfo.end}
+                onPageChange={(page) => orderState.setPage(page)}
+                onPageSizeChange={(size) => orderState.setPageSize(size)}
             />
         {/if}
     </Card.Content>
 </Card.Root>
 
 <FloatingActionBar
-    count={state.selectedIds.size}
-    onClear={() => state.clearSelection()}
-    onReceive={() => onBulkReceive(Array.from(state.selectedIds) as string[])}
+    count={orderState.selectedIds.size}
+    onClear={() => orderState.clearSelection()}
+    onReceive={() => onBulkReceive(Array.from(orderState.selectedIds) as string[])}
     onDelete={handleBulkDelete}
     onExport={handleBulkExport}
+/>
+
+<ConfirmDialog
+    bind:open={isBulkDeleteConfirmOpen}
+    title="Delete selected orders?"
+    description="This action cannot be undone."
+    confirmText="Delete"
+    confirmVariant="destructive"
+    onConfirm={confirmBulkDelete}
 />

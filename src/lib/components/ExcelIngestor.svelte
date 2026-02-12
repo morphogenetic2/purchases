@@ -8,6 +8,7 @@
   import { Label } from "$lib/components/ui/label";
   import * as Table from "$lib/components/ui/table";
   import * as Dialog from "$lib/components/ui/dialog";
+  import { addToast } from "$lib/state/toastState";
 
   // Import the new Excel module
   import {
@@ -56,7 +57,7 @@
       isMappingOpen = true; // Open mapping modal
     } catch (err) {
       console.error("Error parsing file:", err);
-      alert("Error reading Excel file");
+      addToast("Error reading Excel file", "error");
     }
   }
 
@@ -88,7 +89,7 @@
     if (file && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls"))) {
       await processFile(file);
     } else {
-      alert("Please drop an Excel file (.xlsx or .xls)");
+      addToast("Please drop an Excel file (.xlsx or .xls)", "error");
     }
   }
 
@@ -113,7 +114,7 @@
       // Validate orders
       const validation = validateOrders(orders);
       if (!validation.valid) {
-        alert(formatValidationErrors(validation));
+        addToast(formatValidationErrors(validation), "error", 6000);
         return;
       }
 
@@ -125,12 +126,12 @@
       const { error } = await orderService.insertOrders(orders);
       if (error) throw error;
 
-      alert("Success!");
+      addToast("Orders imported successfully.", "success");
       await invalidateAll();
       didUploadSucceed = true;
     } catch (err: any) {
       console.error("Upload Error:", err);
-      alert("Error: " + (err.message || "Unknown error occurred"));
+      addToast("Error: " + (err.message || "Unknown error occurred"), "error");
     } finally {
       isUploading = false;
       if (didUploadSucceed) {
@@ -347,7 +348,7 @@
       <Button
         variant="secondary"
         onclick={() => (isMappingOpen = false)}
-        class="bg-zinc-800 text-zinc-100 hover:bg-zinc-700">Cancel</Button
+        class="bg-zinc-900 border border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white">Cancel</Button
       >
       <Button
         onclick={handleUpload}

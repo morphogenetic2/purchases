@@ -4,7 +4,8 @@
     import { Input } from "$lib/components/ui/input";
     import { Label } from "$lib/components/ui/label";
     import { Textarea } from "$lib/components/ui/textarea";
-    import { cn } from "$lib/utils";
+    import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
+    import { addToast } from "$lib/state/toastState";
     import { ORDER_STATUS } from "$lib/constants";
 
     import { orderService } from "$lib/services/orderService";
@@ -25,8 +26,7 @@
     );
 
     let isLoading = $state(false);
-    let openProvider = $state(false);
-    let searchProvider = $state("");
+    let isDeleteConfirmOpen = $state(false);
 
     let formData = $state({
         description: "",
@@ -85,8 +85,9 @@
             !formData.ordered_by ||
             !formData.project_code
         ) {
-            alert(
+            addToast(
                 "Please fill in all required fields: Description, SKU, Quantity, Ordered By, Project Code",
+                "error",
             );
             return;
         }
@@ -111,27 +112,35 @@
             if (error) throw error;
 
             if (onSave) onSave();
+            addToast("Order saved.", "success");
             isOpen = false;
         } catch (err: any) {
             console.error("Save error:", err);
-            alert("Error saving: " + err.message);
+            addToast("Error saving: " + err.message, "error");
         } finally {
             isLoading = false;
         }
     }
-    async function handleDelete() {
+    function handleDelete() {
         if (!order?.id) return;
-        if (!confirm("Are you sure you want to delete this order?")) return;
+        isDeleteConfirmOpen = true;
+    }
+
+    async function confirmDelete() {
+        if (!order?.id) return false;
 
         isLoading = true;
         try {
             const { error } = await orderService.deleteOrder(order.id);
             if (error) throw error;
             if (onSave) onSave(); // Refresh list
+            addToast("Order deleted.", "success");
             isOpen = false;
+            return true;
         } catch (err: any) {
             console.error("Delete error:", err);
-            alert("Error deleting: " + err.message);
+            addToast("Error deleting: " + err.message, "error");
+            return false;
         } finally {
             isLoading = false;
         }
@@ -306,7 +315,7 @@
                 <Button
                     variant="outline"
                     onclick={() => (isOpen = false)}
-                    class="bg-orange-200 text-black border-orange-300 hover:bg-orange-300 hover:text-black"
+                    class="bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
                 >
                     Cancel
                 </Button>
@@ -322,3 +331,12 @@
         </div>
     </Dialog.Content>
 </Dialog.Root>
+
+<ConfirmDialog
+    bind:open={isDeleteConfirmOpen}
+    title="Delete this order?"
+    description="This action cannot be undone."
+    confirmText="Delete"
+    confirmVariant="destructive"
+    onConfirm={confirmDelete}
+/>

@@ -1,9 +1,10 @@
 import * as XLSX from "xlsx";
 import type { Order } from "$lib/types";
+import { addToast } from "$lib/state/toastState";
 
 export function exportOrdersToExcel(orders: Order[]) {
     if (orders.length === 0) {
-        alert("No orders to export.");
+        addToast("No orders to export.", "info");
         return;
     }
 

@@ -3,8 +3,10 @@
   import OrderDialog from "$lib/components/OrderDialog.svelte";
   import OrderToolbar from "$lib/components/OrderToolbar.svelte";
   import OrderTable from "$lib/components/OrderTable.svelte";
+  import ConfirmDialog from "$lib/components/ConfirmDialog.svelte";
   import { OrderState } from "$lib/state/orderState.svelte";
   import { orderService } from "$lib/services/orderService";
+  import { addToast } from "$lib/state/toastState";
   import { exportOrdersToExcel } from "$lib/utils/export";
   import type { Order, RealtimeEventPayload } from "$lib/types";
   import ExportDialog from "$lib/components/ExportDialog.svelte";
@@ -55,6 +57,21 @@
     orderState.setPage(1);
   });
 
+  // Persist table preferences locally
+  $effect(() => {
+    const _columns = orderState.columns.map(
+      (column) => `${column.id}:${column.visible}`,
+    ).join("|");
+    const _filters = JSON.stringify(orderState.activeFilters);
+    const _pageSize = orderState.pageSize;
+    const _groupBy = orderState.groupBy;
+    void _columns;
+    void _filters;
+    void _pageSize;
+    void _groupBy;
+    orderState.savePreferences();
+  });
+
   // --- Actions ---
   let isReceiveOpen = $state(false);
   let receivingOrders = $state<Order[]>([]);
@@ -72,14 +89,50 @@
     isReceiveOpen = true;
   }
 
-  async function handleRevertReceive(id: string) {
-    if (!confirm("Revert to non-received?")) return;
-    const { error } = await orderService.revertReceive(id);
+  let isRevertConfirmOpen = $state(false);
+  let revertTargetId = $state<string | null>(null);
+
+  function handleRevertReceive(id: string) {
+    revertTargetId = id;
+    isRevertConfirmOpen = true;
+  }
+
+  async function confirmRevertReceive() {
+    if (!revertTargetId) return false;
+
+    const targetOrder = orderState.rawOrders.find((o) => o.id === revertTargetId);
+    if (!targetOrder) return false;
+
+    const previous = {
+      status: targetOrder.status,
+      received_date: targetOrder.received_date,
+      storage_location: targetOrder.storage_location,
+      quantity_received: targetOrder.quantity_received,
+      is_received: targetOrder.is_received,
+    };
+
+    Object.assign(targetOrder, {
+      status: "requested",
+      received_date: null,
+      storage_location: null,
+      quantity_received: 0,
+      is_received: false,
+    });
+
+    const { data, error } = await orderService.revertReceive(revertTargetId);
     if (error) {
-      alert("Error updating order: " + error.message);
-    } else {
-      invalidateAll();
+      Object.assign(targetOrder, previous);
+      addToast("Error updating order: " + error.message, "error");
+      return false;
     }
+
+    if (data && typeof data === "object") {
+      Object.assign(targetOrder, data);
+    }
+
+    addToast("Order reverted to requested.", "success");
+    revertTargetId = null;
+    return true;
   }
 
   // --- DIALOG Handling ---
@@ -131,4 +184,13 @@
   bind:isOpen={isReceiveOpen}
   orders={receivingOrders}
   onSave={() => invalidateAll()}
+/>
+
+<ConfirmDialog
+  bind:open={isRevertConfirmOpen}
+  title="Revert receive status?"
+  description="This will mark the order as requested and clear received metadata."
+  confirmText="Revert"
+  confirmVariant="destructive"
+  onConfirm={confirmRevertReceive}
 />
