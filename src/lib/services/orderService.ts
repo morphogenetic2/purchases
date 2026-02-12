@@ -80,18 +80,6 @@ export const orderService = {
     },
 
     /**
-     * Delete all orders (for database wipe functionality)
-     */
-    async deleteAllOrders(password: string) {
-        const response = await fetch('/api/admin/wipe-db', {
-            method: 'POST',
-            body: JSON.stringify({ password }),
-            headers: { 'Content-Type': 'application/json' }
-        });
-        return handleResponse(response);
-    },
-
-    /**
      * Delete a single order
      */
     async deleteOrder(id: string) {

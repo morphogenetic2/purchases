@@ -1,175 +1,241 @@
-# Technical Map of the Application
+# MAP.md - Current Architecture (LLM-Oriented)
 
-This document serves as a technical reference for the LabFlow KISS Purchase Manager (Svelte 5 Edition).
+This file is a navigation map for quickly locating logic in the codebase.
 
-## 📂 Project Structure
+## 1) Fast Entry Points
 
-```plaintext
-src/
-├── lib/
-│   ├── components/       # UI Components (Atomic & Complex)
-│   ├── services/         # Business Logic & API calls
-│   ├── state/            # State Management (Svelte 5 Runes)
-│   ├── excel/            # Excel Parsing & Validation Logic
-│   ├── constants/        # App-wide Constants
-│   ├── utils/            # Helper functions
-│   ├── types.ts          # TypeScript Definitions
-│   └── supabaseClient.ts # Supabase Configuration
-├── routes/               # SvelteKit Pages
-├── app.css               # Global Styles (Tailwind)
-└── app.html              # HTML Shell
+- App shell and global styles: `src/routes/+layout.svelte`, `src/app.css`
+- Main page (orders UI): `src/routes/+page.svelte`
+- Main data loader: `src/routes/+page.server.ts`
+- Auth gate: `src/hooks.server.ts`
+- Login flow: `src/routes/login/+page.svelte`, `src/routes/login/+page.server.ts`
+- API endpoints: `src/routes/api/**/+server.ts`
+- Client service wrapper for APIs: `src/lib/services/orderService.ts`
+- Stateful client model: `src/lib/state/orderState.svelte.ts`
+- Excel import pipeline: `src/lib/excel/*`
+
+## 2) Runtime Topology (What talks to what)
+
+```text
+Browser UI (Svelte components)
+  -> orderService (fetch /api/*)
+  -> SvelteKit API routes (server)
+  -> supabaseAdmin (service role client)
+  -> Supabase Postgres (orders table)
+
+Browser UI also:
+  -> supabase anon client
+  -> realtime channel "postgres_changes" on orders
+  -> orderState.handleRealtimeEvent(...)
 ```
 
-## 🏗 Key Components (`src/lib/components`)
+Important: `src/hooks.server.ts` currently enforces cookie auth on all routes except `/login` (including `/api/*`), even though the comment says API routes should bypass auth.
 
-Core UI components that drive the application:
+## 3) Directory Ownership Map
 
-- **`OrderTable.svelte`**: The main view. Handles searching, filtering, sorting, grouping, and renders the list of orders.
-- **`OrderRow.svelte`**: Represents a single order row. Handles inline editing, status updates, and selection.
-- **`OrderDialog.svelte`**: A modal for creating and editing orders.
-- **`ReceiveDialog.svelte`**: Dedicated modal for receiving orders (supports partial reception).
-- **`ExcelIngestor.svelte`**: **Two-step modal flow for Excel imports**:
-  - **Step 1**: File selection modal (`isFileSelectOpen`) with drag-and-drop zone and "Click to Browse" button
-  - **Step 2**: Column mapping modal (`isMappingOpen`) for mapping Excel columns to database fields
-  - Uses hidden `<input type="file">` triggered by both modals
-  - State: `isDragging` for visual feedback, `parseResult` for Excel data, `mapping` for column relationships
-- **`FloatingActionBar.svelte`**: Appears when rows are selected, offering bulk actions (receive, delete, export).
-- **`PaginationControls.svelte`**: Reusable pagination component.
-- **`ColumnSelector.svelte`** & **`ColumnFilter.svelte`**: Tools for customizing the table view.
-- **`OrderToolbar.svelte`**: Contains main action buttons (Export, New Order, Wipe DB) and the ExcelIngestor component.
+```text
+src/
+  routes/
+    +layout.svelte                 # imports global CSS + favicon
+    +page.server.ts                # initial orders fetch from Supabase (server-side)
+    +page.svelte                   # orchestration page (toolbar/table/dialogs/realtime)
+    login/
+      +page.svelte                 # password form UI
+      +page.server.ts              # validates LAB_PASSWORD, sets auth cookie
+    api/
+      orders/+server.ts            # GET/POST/PATCH/DELETE orders
+      orders/receive/+server.ts    # bulk mark received
 
-## 🧠 State Management (`src/lib/state`)
+  lib/
+    server/supabaseAdmin.ts        # service-role Supabase client (server only)
+    supabaseClient.ts              # anon Supabase client (browser/realtime)
+    services/orderService.ts       # all client->API calls + response normalization
+    state/orderState.svelte.ts     # client-side state model + derived filtering/grouping/paging
+    excel/
+      fieldDefinitions.ts          # importable field schema + aliases + required flags
+      parser.ts                    # xlsx read + header extraction + auto-map
+      transformer.ts               # raw row -> Order-like object transform
+      validator.ts                 # required-field validation + message formatter
+      index.ts                     # barrel exports
+    components/
+      OrderToolbar.svelte          # top actions (export/import/new)
+      OrderTable.svelte            # search/filter/group/table + bulk actions
+      OrderRow.svelte              # row rendering + inline edit surfaces
+      EditableCell.svelte          # dbl-click inline editor primitive
+      OrderDialog.svelte           # create/edit/delete modal
+      ReceiveDialog.svelte         # partial/single and bulk receive modal
+      ExcelIngestor.svelte         # 2-step import modal flow
+      ExportDialog.svelte          # export options modal
+      FloatingActionBar.svelte     # bulk actions when rows selected
+      ColumnFilter.svelte          # per-column multi-select filters
+      ColumnSelector.svelte        # show/hide table columns
+      PaginationControls.svelte    # page + size controls
+      ui/**                        # reusable primitives (button/dialog/table/etc.)
+    constants/order.ts             # statuses/group-by/pagination/colors/defaults
+    utils.ts                       # cn() + status color helper
+    utils/export.ts                # xlsx export writer
+    types.ts                       # Order/Column/realtime payload interfaces
+    actions/resizable.ts           # column-resize action
 
-The application uses **Svelte 5 Runes** for reactive state management.
+  tests/
+    api/*                          # endpoint behavior tests
+    excel/*                        # parser/transformer/validator tests
+    components/*                   # ExcelIngestor + ReceiveDialog tests
+    constants.test.ts              # constants integrity tests
+    utils.test.ts                  # helper behavior tests
+```
 
-- **`orderState.svelte.ts`**:
-  - Manages the global list of orders (`rawOrders`).
-  - Handles **Derived State** for filtering, sorting, and grouping (`filteredOrders`, `groupedOrders`).
-  - Manages UI state: `searchTerm`, `activeFilters`, `visibleColumns`, `pagination`.
-  - **Key Class**: `OrderState` class encapsulates all this logic.
+## 4) Main Flows (Exact File Chains)
 
-## 🔌 Services (`src/lib/services`)
+### A) Initial page load
 
-Business logic is isolated from UI components.
+1. `src/routes/+page.server.ts` loads `orders` from Supabase.
+2. `src/routes/+page.svelte` constructs `new OrderState(data.orders)`.
+3. Page renders `OrderToolbar`, `OrderTable`, and dialogs.
 
-- **`orderService.ts`**:
-  - Wraps Supabase calls.
-  - Methods: `fetchOrders`, `upsertOrder`, `deleteOrder`, `bulkDelete`, `bulkReceive`.
-  - Handles error mapping and database interactions.
+### B) Realtime updates
 
-## 📊 Excel Ingestion (`src/lib/excel`)
+1. `src/routes/+page.svelte` subscribes to `supabase.channel("table-db-changes")`.
+2. Postgres events call `orderState.handleRealtimeEvent(...)`.
+3. `src/lib/state/orderState.svelte.ts` mutates `rawOrders` for INSERT/UPDATE/DELETE.
 
-A specialized module for robust Excel importing:
+### C) Inline edit save
 
-- **`parser.ts`**: raw Excel parsing using `xlsx` library.
-- **`transformer.ts`**: Maps Excel columns to application fields (e.g., "Cost" -> `unit_price`). Handles column mapping logic.
-- **`validator.ts`**: Validates data integrity (required fields, data types).
-- **`fieldDefinitions.ts`**: Defines expected fields, alternatives/aliases, and validation rules.
+1. User edits in `src/lib/components/EditableCell.svelte`.
+2. `src/lib/components/OrderRow.svelte` bubbles `onUpdate(id, field, value)`.
+3. `src/lib/components/OrderTable.svelte` -> `orderService.updateOrder(...)`.
+4. `src/lib/services/orderService.ts` sends `PATCH /api/orders`.
+5. `src/routes/api/orders/+server.ts` loops updates by `id`.
 
-## 🗃 Key Types (`src/lib/types.ts`)
+### D) Excel import
 
-- **`Order`**: The core data entity.
-  - `id`, `description`, `sku`, `quantity`, `unit_price`, `status`, etc.
-- **`OrderStatus`**: Union type (`'requested' | 'ordered' | 'received' | ...`).
+1. `src/lib/components/ExcelIngestor.svelte` reads file (`readFileAsBinaryString`).
+2. Parses workbook (`parseExcelBuffer`), builds/edits mapping.
+3. Transforms rows (`transformExcelToOrders`) + validates (`validateOrders`).
+4. Uploads through `orderService.insertOrders(...)` -> `POST /api/orders`.
+5. Calls `invalidateAll()` to refresh server data.
 
-## 🎨 Styling
+### E) Receive orders
 
-- **Tailwind CSS**: Utility-first styling.
-- **`src/lib/components/ui/`**: Shadcn-svelte compatible primitive components (Buttons, Inputs, Dialogs).
-- **Design System**: Dark mode heavy (Zinc palette), with Emerald for actions/success states.
+- Single order: `ReceiveDialog` uses `orderService.updateOrder(...)` for partial/full receive.
+- Bulk orders: `ReceiveDialog` uses `orderService.bulkReceive(ids, options)` -> `POST /api/orders/receive`.
+- Server route applies `status=received`, `quantity_received=quantity`, `is_received=true`.
 
-## 🛠 Important Workflows
+## 5) API Contract Quick Reference
 
-### 1. Excel Import Flow (Two-Step Modal Process)
+### `GET /api/orders`
+- File: `src/routes/api/orders/+server.ts`
+- Response: `{ orders: Order[] }`
 
-**User Journey:**
+### `POST /api/orders`
+- File: `src/routes/api/orders/+server.ts`
+- Body: order object or array of order objects
+- Behavior:
+  - Auto-adds `id` if missing via `crypto.randomUUID()`
+  - Uses Supabase `upsert(...)`
+- Response: `{ data: ... }`
 
-1. User clicks "Import / Append Orders" button in `OrderToolbar`
-2. `ExcelIngestor` opens **File Selection Modal** (`isFileSelectOpen = true`)
-3. User either:
-   - Drags Excel file onto drop zone → `handleDrop()` → `processFile()`
-   - Clicks "Click to Browse" button → Opens file picker → `handleFile()` → `processFile()`
-4. `processFile()` executes:
-   - Reads file as binary string (`readFileAsBinaryString()`)
-   - Parses Excel data (`parseExcelBuffer()`)
-   - Generates auto-mapping suggestions based on column headers
-   - Closes file selection modal (`isFileSelectOpen = false`)
-   - Opens **Column Mapping Modal** (`isMappingOpen = true`)
-5. User maps Excel columns to DB fields (or uses auto-mapping)
-6. User sets defaults for unmapped required fields (`defaultOrderedBy`, `defaultOrderDate`)
-7. User checks/unchecks "New Order" checkbox (`forceNew`)
-8. User clicks "Import Orders" → `handleUpload()`:
-   - Transforms data (`transformExcelToOrders()`)
-   - Validates data (`validateOrders()`)
-   - Inserts into Supabase (`orderService.insertOrders()`)
-   - Shows success message
-   - Triggers `invalidateAll()` to refresh data
-   - Closes mapping modal (`isMappingOpen = false`)
+### `PATCH /api/orders`
+- File: `src/routes/api/orders/+server.ts`
+- Body: `{ id, ...fields }` or array of those
+- Behavior: loops and updates each row by `id`
+- Response: `{ data: updatedRow | updatedRows[] }`
 
-**Key Functions:**
+### `DELETE /api/orders`
+- File: `src/routes/api/orders/+server.ts`
+- Body: `{ id }` or `{ ids: string[] }`
+- Response: `{ success: true }`
 
-- `processFile(file)`: Core file processing logic (parsing + modal transition)
-- `handleFile(e)`: File input change handler
-- `handleDrop(e)`: Drag-and-drop event handler
-- `handleDragOver/Leave(e)`: Visual feedback for drag state
-- `handleUpload()`: Final import execution
+### `POST /api/orders/receive`
+- File: `src/routes/api/orders/receive/+server.ts`
+- Body: `{ ids: string[], receivedDate?: string, storageLocation?: string }`
+- Response: `{ success: true, updated: number }`
 
-**State Variables:**
+## 6) State Model (`OrderState`)
 
-- `isFileSelectOpen`: Controls file selection modal visibility
-- `isMappingOpen`: Controls column mapping modal visibility
-- `isDragging`: Visual feedback during drag operations
-- `parseResult`: Parsed Excel data (headers, rows, auto-mapping)
-- `mapping`: User's column mapping choices
-- `forceNew`: Whether to force "new order" status
+File: `src/lib/state/orderState.svelte.ts`
 
-### 2. Order Loading & Realtime Updates
+Core mutable state:
+- `rawOrders`, `searchTerm`, `sortDirection`, `groupBy`
+- `selectedIds` (`SvelteSet`)
+- `currentPage`, `pageSize`
+- `columns`, `activeFilters`
 
-1. **Initial Load**: `+page.svelte` loads data via `data.orders` from server-side loader
-2. `OrderState` is initialized with this data
-3. **Realtime Subscription**: Supabase channel listens for database changes
-4. On INSERT/UPDATE/DELETE events → `orderState.handleRealtimeEvent()` updates `rawOrders`
-5. Derived state (`filteredOrders`, `groupedOrders`) automatically recomputes
+Derived state:
+- `visibleColumns`
+- `filterOptions` (requester/status/provider/date lists)
+- `filteredOrders` (search + filters + date sort)
+- `totalPages`, `paginatedOrders`, `pageInfo`
+- `groupedOrders` (groups paginated orders by selected dimension)
 
-### 3. Inline Editing Flow
+Key mutators:
+- `setOrders`, `handleRealtimeEvent`, `toggleSelection`, `toggleAll`, `clearSelection`
+- `setGroupBy`, `toggleSort`, `setPage`, `setPageSize`
 
-1. User edits field in `OrderRow`
-2. `onUpdate` callback triggered
-3. Calls `orderService.updateOrder(id, changes)`
-4. Supabase updates database
-5. Realtime event propagates change to all connected clients
-6. `OrderState` updates automatically
+## 7) Data Model and DB Schema
 
-### 4. Filtering & Search
+- Type interface: `src/lib/types.ts` (`Order`)
+- SQL schema: `schema.sql` (`public.orders`)
+- Status constants: `src/lib/constants/order.ts` (`ORDER_STATUS`)
 
-1. User types in search box or selects filters in `OrderTable`
-2. Updates `state.searchTerm` or `state.activeFilters`
-3. `filteredOrders` (derived state) recomputes automatically
-4. Pagination resets to page 1 (via `$effect`)
-5. No database refetch—purely client-side filtering
+Supabase clients:
+- Browser (anon): `src/lib/supabaseClient.ts`
+- Server/admin (service role): `src/lib/server/supabaseAdmin.ts`
 
-### 5. Bulk Actions
+## 8) Auth Model
 
-1. User selects multiple rows (checkboxes in `OrderRow`)
-2. `FloatingActionBar` appears with bulk action buttons
-3. User clicks action (e.g., "Receive All")
-4. `OrderTable` calls `handleBulkReceiveRequest(ids)`
-5. Opens `ReceiveDialog` with selected orders
-6. User confirms → `orderService.bulkReceive()`
-7. Database updated → Realtime propagates changes
+- Password source: `LAB_PASSWORD` env var.
+- Login sets cookie `lab_access_token=authenticated` for 1 week.
+- Guard in `src/hooks.server.ts` redirects unauthenticated requests to `/login`.
 
-## 🔄 Component Interaction Patterns
+Files:
+- `src/routes/login/+page.server.ts`
+- `src/routes/login/+page.svelte`
+- `src/hooks.server.ts`
 
-- **Parent → Child Props**: `+page.svelte` passes `orderState` and callbacks to `OrderTable`
-- **Child → Parent Events**: `OrderTable` emits `onEdit`, `onReceive` to `+page.svelte`
-- **Service Layer**: Components never call Supabase directly—always use `orderService`
-- **State Reactivity**: Svelte 5 runes (`$state`, `$derived`, `$effect`) handle all reactivity
+## 9) Test Coverage Map
 
-## 🎨 UI/UX Patterns
+- API behavior:
+  - `src/tests/api/orders-route.test.ts`
+  - `src/tests/api/orders-receive-route.test.ts`
+- Excel pipeline:
+  - `src/tests/excel/parser.test.ts`
+  - `src/tests/excel/transformer.test.ts`
+  - `src/tests/excel/validator.test.ts`
+- Component flows:
+  - `src/tests/components/ExcelIngestor.test.ts`
+  - `src/tests/components/ReceiveDialog.test.ts`
+- Constants/utils:
+  - `src/tests/constants.test.ts`
+  - `src/tests/utils.test.ts`
 
-- **Dark Theme**: Zinc-900/950 backgrounds, Zinc-100/200 text
-- **Accent Color**: Emerald-600/700 for primary actions
-- **Hover States**: Subtle border/background color shifts
-- **Animations**: 300ms transitions for smooth interactions
-- **Drag-and-Drop**: Scale transform (1.02), color shift (emerald), bounce animation on icon
-- **Modals**: Shadcn-inspired Dialog components with backdrop blur
+## 10) Task-to-File Lookup (for LLMs)
+
+- "Add new order field end-to-end":
+  - `schema.sql`
+  - `src/lib/types.ts`
+  - `src/lib/components/OrderDialog.svelte`
+  - `src/lib/components/OrderRow.svelte`
+  - `src/lib/state/orderState.svelte.ts` (filters/columns/grouping if needed)
+  - `src/lib/excel/fieldDefinitions.ts` + `transformer.ts` + `validator.ts` (if import/export affected)
+
+- "Change receive behavior":
+  - `src/lib/components/ReceiveDialog.svelte`
+  - `src/lib/services/orderService.ts`
+  - `src/routes/api/orders/receive/+server.ts`
+  - `src/lib/constants/order.ts`
+
+- "Change auth/login":
+  - `src/hooks.server.ts`
+  - `src/routes/login/+page.server.ts`
+  - `src/routes/login/+page.svelte`
+  - `.env` / `.env.example`
+
+- "Change export format":
+  - `src/lib/utils/export.ts`
+  - `src/lib/components/ExportDialog.svelte`
+
+- "Change table filtering/grouping/pagination":
+  - `src/lib/state/orderState.svelte.ts`
+  - `src/lib/components/OrderTable.svelte`
+  - `src/lib/components/PaginationControls.svelte`

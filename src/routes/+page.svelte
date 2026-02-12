@@ -82,11 +82,6 @@
     }
   }
 
-  function handleWipe() {
-    // This is triggered by the Toolbar component's success callback
-    invalidateAll();
-  }
-
   // --- DIALOG Handling ---
   let isSheetOpen = $state(false);
   let editingOrder = $state<Order | null>(null);
@@ -106,7 +101,6 @@
   <OrderToolbar
     onExport={() => (isExportOpen = true)}
     onNewOrder={handleAdd}
-    onWipe={handleWipe}
     requesters={orderState.filterOptions.requester}
   />
 

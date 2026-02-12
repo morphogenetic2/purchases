@@ -2,22 +2,16 @@
   import { Button } from "$lib/components/ui/button";
   import { Plus, Download } from "lucide-svelte";
   import ExcelIngestor from "$lib/components/ExcelIngestor.svelte";
-  import { orderService } from "$lib/services/orderService";
-  import WipeDbDialog from "./WipeDbDialog.svelte";
 
   let {
     onExport,
     onNewOrder,
-    onWipe,
     requesters = [],
   } = $props<{
     onExport: () => void;
     onNewOrder: () => void;
-    onWipe: () => void; // Parent handles the reload/invalidate
     requesters: string[];
   }>();
-
-  let isWipeOpen = $state(false);
 </script>
 
 <div class="flex flex-col md:flex-row justify-between items-center gap-4">
@@ -28,10 +22,6 @@
     <p class="text-zinc-400">Manage orders</p>
   </div>
   <div class="flex items-center gap-2">
-    <Button variant="destructive" size="sm" onclick={() => (isWipeOpen = true)}>
-      Wipe DB
-    </Button>
-
     <Button
       variant="outline"
       size="sm"
@@ -49,5 +39,3 @@
     </Button>
   </div>
 </div>
-
-<WipeDbDialog bind:open={isWipeOpen} {onWipe} />
