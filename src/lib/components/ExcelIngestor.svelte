@@ -50,7 +50,7 @@
 
     try {
       const binaryString = await readFileAsBinaryString(file);
-      parseResult = parseExcelBuffer(binaryString);
+      parseResult = await parseExcelBuffer(binaryString);
       mapping = { ...parseResult.autoMapping };
       forceNew = true;
       isFileSelectOpen = false; // Close file selection modal

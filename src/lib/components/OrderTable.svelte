@@ -121,7 +121,7 @@
         const selectedOrders = orderState.rawOrders.filter((o: Order) =>
             orderState.selectedIds.has(o.id),
         );
-        exportOrdersToExcel(selectedOrders);
+        void exportOrdersToExcel(selectedOrders);
         orderState.clearSelection();
     }
 

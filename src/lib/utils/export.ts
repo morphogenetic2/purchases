@@ -1,12 +1,21 @@
-import * as XLSX from "xlsx";
 import type { Order } from "$lib/types";
 import { addToast } from "$lib/state/toastState";
 
-export function exportOrdersToExcel(orders: Order[]) {
+let xlsxModulePromise: Promise<typeof import("xlsx")> | null = null;
+
+async function getXlsx() {
+    if (!xlsxModulePromise) {
+        xlsxModulePromise = import("xlsx");
+    }
+    return xlsxModulePromise;
+}
+
+export async function exportOrdersToExcel(orders: Order[]) {
     if (orders.length === 0) {
         addToast("No orders to export.", "info");
         return;
     }
+    const XLSX = await getXlsx();
 
     const exportData = orders.map((order) => ({
         Date: new Date(

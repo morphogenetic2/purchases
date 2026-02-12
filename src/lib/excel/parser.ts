@@ -3,8 +3,16 @@
  * Handles reading Excel files and extracting headers/preview data.
  */
 
-import * as XLSX from 'xlsx';
 import { DB_FIELDS, type FieldDefinition } from './fieldDefinitions';
+
+let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null;
+
+async function getXlsx() {
+    if (!xlsxModulePromise) {
+        xlsxModulePromise = import('xlsx');
+    }
+    return xlsxModulePromise;
+}
 
 export interface ParseResult {
     headers: string[];
@@ -16,7 +24,8 @@ export interface ParseResult {
 /**
  * Parse an Excel file and extract headers, preview data, and auto-mapped fields.
  */
-export function parseExcelBuffer(binaryString: string): ParseResult {
+export async function parseExcelBuffer(binaryString: string): Promise<ParseResult> {
+    const XLSX = await getXlsx();
     const workbook = XLSX.read(binaryString, { type: 'binary' });
     const sheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[sheetName];

@@ -12,7 +12,7 @@
     } = $props<{
         open: boolean;
         state: OrderState;
-        onExport: (orders: Order[]) => void;
+        onExport: (orders: Order[]) => Promise<void> | void;
     }>();
 
     type ExportMode =
@@ -168,9 +168,9 @@
         return `Status: ${selectedStatus || "-"}`;
     });
 
-    function handleExport() {
+    async function handleExport() {
         if (!canExport) return;
-        onExport(exportOrders);
+        await onExport(exportOrders);
         open = false;
     }
 
