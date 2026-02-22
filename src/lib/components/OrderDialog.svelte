@@ -12,6 +12,7 @@
     import { Trash2 } from "lucide-svelte";
 
     import { PREDEFINED_ORDERED_BY } from "$lib/constants";
+    import { t } from "$lib/i18n";
     let {
         order = null,
         isOpen = $bindable(false),
@@ -86,7 +87,7 @@
             !formData.project_code
         ) {
             addToast(
-                "Please fill in all required fields: Description, SKU, Quantity, Ordered By, Project Code",
+                $t("order_dialog.toast.required_fields"),
                 "error",
             );
             return;
@@ -112,11 +113,11 @@
             if (error) throw error;
 
             if (onSave) onSave();
-            addToast("Order saved.", "success");
+            addToast($t("order_dialog.toast.saved"), "success");
             isOpen = false;
         } catch (err: any) {
             console.error("Save error:", err);
-            addToast("Error saving: " + err.message, "error");
+            addToast($t("order_dialog.toast.save_error", { error: err.message }), "error");
         } finally {
             isLoading = false;
         }
@@ -134,12 +135,12 @@
             const { error } = await orderService.deleteOrder(order.id);
             if (error) throw error;
             if (onSave) onSave(); // Refresh list
-            addToast("Order deleted.", "success");
+            addToast($t("order_dialog.toast.deleted"), "success");
             isOpen = false;
             return true;
         } catch (err: any) {
             console.error("Delete error:", err);
-            addToast("Error deleting: " + err.message, "error");
+            addToast($t("order_dialog.toast.delete_error", { error: err.message }), "error");
             return false;
         } finally {
             isLoading = false;
@@ -153,19 +154,19 @@
     >
         <Dialog.Header class="p-6 pb-4 border-b border-zinc-800">
             <Dialog.Title class="text-white text-xl"
-                >{order ? "Edit Order" : "New Order"}</Dialog.Title
+                >{order ? $t("order_dialog.edit_title") : $t("order_dialog.new_title")}</Dialog.Title
             >
             <Dialog.Description class="text-zinc-400">
                 {order
-                    ? "Make changes to your order here."
-                    : "Fill in the details for the new order."}
+                    ? $t("order_dialog.edit_description")
+                    : $t("order_dialog.new_description")}
             </Dialog.Description>
         </Dialog.Header>
 
         <div class="flex-1 overflow-y-auto p-6 grid gap-6">
             <div class="grid gap-2">
                 <Label for="description" class="text-zinc-300"
-                    >Description <span class="text-red-500">*</span></Label
+                    >{$t("order_dialog.description")} <span class="text-red-500">*</span></Label
                 >
                 <Textarea
                     id="description"
@@ -177,7 +178,7 @@
             <div class="grid grid-cols-2 gap-6">
                 <div class="grid gap-2">
                     <Label for="sku" class="text-zinc-300"
-                        >Reference <span class="text-red-500">*</span></Label
+                        >{$t("order_dialog.reference")} <span class="text-red-500">*</span></Label
                     >
                     <Input
                         id="sku"
@@ -187,7 +188,7 @@
                 </div>
                 <div class="grid gap-2">
                     <Label for="quantity" class="text-zinc-300"
-                        >Quantity <span class="text-red-500">*</span></Label
+                        >{$t("order_dialog.quantity")} <span class="text-red-500">*</span></Label
                     >
                     <Input
                         id="quantity"
@@ -200,12 +201,12 @@
 
             <div class="grid grid-cols-2 gap-6">
                 <div class="grid gap-2">
-                    <Label for="provider" class="text-zinc-300">Provider</Label>
+                    <Label for="provider" class="text-zinc-300">{$t("order_dialog.provider")}</Label>
                     <Input
                         id="provider"
                         bind:value={formData.provider}
                         list="provider-list"
-                        placeholder="Select or type provider..."
+                        placeholder={$t("order_dialog.provider_placeholder")}
                         class="bg-zinc-900 border-zinc-700"
                     />
                     <datalist id="provider-list">
@@ -216,13 +217,13 @@
                 </div>
                 <div class="grid gap-2">
                     <Label for="ordered_by" class="text-zinc-300"
-                        >Ordered By <span class="text-red-500">*</span></Label
+                        >{$t("order_dialog.ordered_by")} <span class="text-red-500">*</span></Label
                     >
                     <Input
                         id="ordered_by"
                         bind:value={formData.ordered_by}
                         list="requester-list"
-                        placeholder="Select or type requester..."
+                        placeholder={$t("order_dialog.requester_placeholder")}
                         class="bg-zinc-900 border-zinc-700"
                     />
                     <datalist id="requester-list">
@@ -236,7 +237,7 @@
             <div class="grid grid-cols-2 gap-6">
                 <div class="grid gap-2">
                     <Label for="project_code" class="text-zinc-300"
-                        >Project Code <span class="text-red-500">*</span></Label
+                        >{$t("order_dialog.project_code")} <span class="text-red-500">*</span></Label
                     >
                     <Input
                         id="project_code"
@@ -246,7 +247,7 @@
                 </div>
                 <div class="grid gap-2">
                     <Label for="po_number" class="text-zinc-300"
-                        >PO Number</Label
+                        >{$t("order_dialog.po_number")}</Label
                     >
                     <Input
                         id="po_number"
@@ -257,7 +258,7 @@
             </div>
 
             <div class="grid gap-2">
-                <Label for="unit_price" class="text-zinc-300">Unit Price</Label>
+                <Label for="unit_price" class="text-zinc-300">{$t("order_dialog.unit_price")}</Label>
                 <Input
                     id="unit_price"
                     type="number"
@@ -269,12 +270,12 @@
 
             <div class="h-px bg-zinc-800 my-2"></div>
 
-            <h3 class="text-sm font-medium text-zinc-400">Receiving Info</h3>
+            <h3 class="text-sm font-medium text-zinc-400">{$t("order_dialog.receiving_info")}</h3>
 
             <div class="grid grid-cols-2 gap-6">
                 <div class="grid gap-2">
                     <Label for="storage_location" class="text-zinc-300"
-                        >Storage Location</Label
+                        >{$t("order_dialog.storage_location")}</Label
                     >
                     <Input
                         id="storage_location"
@@ -284,7 +285,7 @@
                 </div>
                 <div class="grid gap-2">
                     <Label for="received_date" class="text-zinc-300"
-                        >Received Date</Label
+                        >{$t("order_dialog.received_date")}</Label
                     >
                     <Input
                         id="received_date"
@@ -305,7 +306,7 @@
                     onclick={handleDelete}
                     class="mr-auto"
                 >
-                    <Trash2 class="mr-2 h-4 w-4" /> Delete Order
+                    <Trash2 class="mr-2 h-4 w-4" /> {$t("order_dialog.delete_order")}
                 </Button>
             {:else}
                 <div></div>
@@ -317,7 +318,7 @@
                     onclick={() => (isOpen = false)}
                     class="bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
                 >
-                    Cancel
+                    {$t("common.cancel")}
                 </Button>
 
                 <Button
@@ -325,7 +326,7 @@
                     disabled={isLoading}
                     class="bg-emerald-600 hover:bg-emerald-700 text-white"
                 >
-                    {isLoading ? "Saving..." : "Save Order"}
+                    {isLoading ? $t("order_dialog.saving") : $t("order_dialog.save_order")}
                 </Button>
             </div>
         </div>
@@ -334,9 +335,9 @@
 
 <ConfirmDialog
     bind:open={isDeleteConfirmOpen}
-    title="Delete this order?"
-    description="This action cannot be undone."
-    confirmText="Delete"
+    title={$t("order_dialog.confirm_delete_title")}
+    description={$t("order_dialog.confirm_delete_description")}
+    confirmText={$t("common.delete")}
     confirmVariant="destructive"
     onConfirm={confirmDelete}
 />

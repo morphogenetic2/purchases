@@ -4,20 +4,25 @@
     import { Input } from "$lib/components/ui/input";
     import * as Card from "$lib/components/ui/card";
     import { Label } from "$lib/components/ui/label";
+    import { t } from "$lib/i18n";
+    import LanguageToggle from "$lib/components/LanguageToggle.svelte";
 </script>
 
 <div
     class="flex h-screen w-full items-center justify-center bg-zinc-950 text-zinc-100 p-4"
 >
+    <div class="absolute top-4 right-4">
+        <LanguageToggle />
+    </div>
     <Card.Root
         class="w-full max-w-[350px] border-zinc-800 bg-zinc-900 text-zinc-100 shadow-xl"
     >
         <Card.Header>
             <Card.Title class="text-2xl font-bold text-center"
-                >Lab Access</Card.Title
+                >{$t("login.title")}</Card.Title
             >
             <Card.Description class="text-zinc-400 text-center"
-                >Enter the lab shared password.</Card.Description
+                >{$t("login.subtitle")}</Card.Description
             >
         </Card.Header>
         <form method="POST">
@@ -25,7 +30,7 @@
                 <div class="grid w-full items-center gap-4">
                     <div class="flex flex-col space-y-2">
                         <Label for="password" class="text-zinc-200"
-                            >Password</Label
+                            >{$t("login.password")}</Label
                         >
                         <Input
                             id="password"
@@ -37,7 +42,7 @@
                     </div>
                     {#if form?.incorrect}
                         <p class="text-sm font-medium text-red-500">
-                            Incorrect password.
+                            {$t("login.incorrect")}
                         </p>
                     {/if}
                 </div>
@@ -46,7 +51,7 @@
                 <Button
                     type="submit"
                     class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition-colors"
-                    >Unlock</Button
+                    >{$t("login.unlock")}</Button
                 >
             </Card.Footer>
         </form>

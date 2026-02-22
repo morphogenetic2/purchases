@@ -4,6 +4,7 @@
     import { Label } from "$lib/components/ui/label";
     import type { OrderState } from "$lib/state/orderState.svelte";
     import type { Order } from "$lib/types";
+    import { localizeStatus, t } from "$lib/i18n";
 
     let {
         open = $bindable(false),
@@ -150,22 +151,24 @@
     );
 
     let selectionLabel: string = $derived.by(() => {
-        if (selectedMode === "current_view") return "Current filtered rows";
+        if (selectedMode === "current_view") return $t("export.current_view");
         if (selectedMode === "selected_rows")
-            return `Selected rows (${orderState.selectedIds.size})`;
+            return $t("export.selected_rows", { count: orderState.selectedIds.size });
         if (selectedMode === "latest_date")
             return latestDateForSource
-                ? `Latest date (${new Date(latestDateForSource).toLocaleDateString()})`
-                : "Latest date";
-        if (selectedMode === "requester") return `Requester: ${selectedRequester || "-"}`;
+                ? `${$t("export.latest_date")} (${new Date(latestDateForSource).toLocaleDateString()})`
+                : $t("export.latest_date");
+        if (selectedMode === "requester") {
+            return `${$t("export.requester")}: ${selectedRequester || "-"}`;
+        }
         if (selectedMode === "date")
-            return `Date: ${
+            return `${$t("export.date")}: ${
                 selectedDate
                     ? new Date(selectedDate).toLocaleDateString()
                     : "-"
             }`;
-        if (selectedMode === "provider") return `Provider: ${selectedProvider || "-"}`;
-        return `Status: ${selectedStatus || "-"}`;
+        if (selectedMode === "provider") return `${$t("export.provider")}: ${selectedProvider || "-"}`;
+        return `${$t("export.status")}: ${selectedStatus ? localizeStatus(selectedStatus, $t) : "-"}`;
     });
 
     async function handleExport() {
@@ -197,40 +200,40 @@
         class="sm:max-w-[560px] bg-zinc-950 border-zinc-900 text-zinc-100"
     >
         <Dialog.Header>
-            <Dialog.Title>Export Options</Dialog.Title>
+            <Dialog.Title>{$t("export.title")}</Dialog.Title>
             <Dialog.Description>
-                Choose what to export, review the summary, then confirm.
+                {$t("export.description")}
             </Dialog.Description>
         </Dialog.Header>
         <div class="grid gap-4 py-4">
             <div class="grid gap-2">
-                <Label class="text-xs text-zinc-400">Dataset</Label>
+                <Label class="text-xs text-zinc-400">{$t("export.dataset")}</Label>
                 <select
                     bind:value={selectedMode}
                     class="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 >
-                    <option value="current_view">Current filtered rows</option>
+                    <option value="current_view">{$t("export.current_view")}</option>
                     {#if orderState.selectedIds.size > 0}
                         <option value="selected_rows">
-                            Selected rows ({orderState.selectedIds.size})
+                            {$t("export.selected_rows", { count: orderState.selectedIds.size })}
                         </option>
                     {/if}
-                    <option value="latest_date">Latest date</option>
-                    <option value="requester">By requester</option>
-                    <option value="date">By date</option>
-                    <option value="provider">By provider</option>
-                    <option value="status">By status</option>
+                    <option value="latest_date">{$t("export.latest_date")}</option>
+                    <option value="requester">{$t("export.by_requester")}</option>
+                    <option value="date">{$t("export.by_date")}</option>
+                    <option value="provider">{$t("export.by_provider")}</option>
+                    <option value="status">{$t("export.by_status")}</option>
                 </select>
             </div>
 
             {#if selectedMode === "requester"}
                 <div class="grid gap-2">
-                    <Label class="text-xs text-zinc-400">Requester</Label>
+                    <Label class="text-xs text-zinc-400">{$t("export.requester")}</Label>
                     <select
                         bind:value={selectedRequester}
                         class="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
-                        <option value="">Select requester</option>
+                        <option value="">{$t("export.select_requester")}</option>
                         {#each requesterOptions as requester}
                             <option value={requester}>{requester}</option>
                         {/each}
@@ -238,12 +241,12 @@
                 </div>
             {:else if selectedMode === "date"}
                 <div class="grid gap-2">
-                    <Label class="text-xs text-zinc-400">Date</Label>
+                    <Label class="text-xs text-zinc-400">{$t("export.date")}</Label>
                     <select
                         bind:value={selectedDate}
                         class="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
-                        <option value="">Select date</option>
+                        <option value="">{$t("export.select_date")}</option>
                         {#each dateOptions as d}
                             <option value={d}>{new Date(d).toLocaleDateString()}</option>
                         {/each}
@@ -251,12 +254,12 @@
                 </div>
             {:else if selectedMode === "provider"}
                 <div class="grid gap-2">
-                    <Label class="text-xs text-zinc-400">Provider</Label>
+                    <Label class="text-xs text-zinc-400">{$t("export.provider")}</Label>
                     <select
                         bind:value={selectedProvider}
                         class="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
-                        <option value="">Select provider</option>
+                        <option value="">{$t("export.select_provider")}</option>
                         {#each providerOptions as provider}
                             <option value={provider}>{provider}</option>
                         {/each}
@@ -264,14 +267,14 @@
                 </div>
             {:else if selectedMode === "status"}
                 <div class="grid gap-2">
-                    <Label class="text-xs text-zinc-400">Status</Label>
+                    <Label class="text-xs text-zinc-400">{$t("export.status")}</Label>
                     <select
                         bind:value={selectedStatus}
                         class="h-10 rounded-md border border-zinc-700 bg-zinc-900 px-3 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     >
-                        <option value="">Select status</option>
+                        <option value="">{$t("export.select_status")}</option>
                         {#each statusOptions as status}
-                            <option value={status}>{status}</option>
+                            <option value={status}>{localizeStatus(status, $t)}</option>
                         {/each}
                     </select>
                 </div>
@@ -279,7 +282,7 @@
 
             {#if usesSourceToggle}
                 <div class="grid gap-2">
-                    <Label class="text-xs text-zinc-400">Source</Label>
+                    <Label class="text-xs text-zinc-400">{$t("export.source")}</Label>
                     <div class="flex gap-2">
                         <Button
                             variant={sourceMode === "filtered" ? "default" : "outline"}
@@ -289,7 +292,7 @@
                                 ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                                 : "bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800"}
                         >
-                            Current filtered view
+                            {$t("export.source_filtered")}
                         </Button>
                         <Button
                             variant={sourceMode === "all" ? "default" : "outline"}
@@ -299,30 +302,30 @@
                                 ? "bg-emerald-600 hover:bg-emerald-700 text-white"
                                 : "bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800"}
                         >
-                            All orders
+                            {$t("export.source_all")}
                         </Button>
                     </div>
                 </div>
             {/if}
 
             <div class="rounded-md border border-zinc-800 bg-zinc-900/60 p-3 space-y-1">
-                <p class="text-xs uppercase tracking-wide text-zinc-500">Export Summary</p>
+                <p class="text-xs uppercase tracking-wide text-zinc-500">{$t("export.summary")}</p>
                 <p class="text-sm text-zinc-200">
-                    Selection: <span class="text-zinc-100">{selectionLabel}</span>
+                    {$t("export.selection")}: <span class="text-zinc-100">{selectionLabel}</span>
                 </p>
                 <p class="text-sm text-zinc-200">
-                    Rows: <span class="text-zinc-100">{exportOrders.length}</span>
+                    {$t("export.rows")}: <span class="text-zinc-100">{exportOrders.length}</span>
                 </p>
                 <p class="text-sm text-zinc-200">
-                    File: <span class="text-zinc-100">{exportFilename}</span>
+                    {$t("export.file")}: <span class="text-zinc-100">{exportFilename}</span>
                 </p>
                 {#if !selectionComplete}
                     <p class="text-xs text-amber-400">
-                        Complete the selection above to enable export.
+                        {$t("export.complete_selection")}
                     </p>
                 {:else if exportOrders.length === 0}
                     <p class="text-xs text-amber-400">
-                        No rows match this selection.
+                        {$t("export.no_rows")}
                     </p>
                 {/if}
             </div>
@@ -334,7 +337,7 @@
                 onclick={() => (open = false)}
                 class="bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
             >
-                Cancel
+                {$t("common.cancel")}
             </Button>
             <Button
                 type="button"
@@ -342,7 +345,7 @@
                 disabled={!canExport}
                 class="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-                Export
+                {$t("common.export")}
             </Button>
         </Dialog.Footer>
     </Dialog.Content>

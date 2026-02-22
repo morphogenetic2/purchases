@@ -6,6 +6,7 @@
     import { ORDER_STATUS } from "$lib/constants";
     import { orderService } from "$lib/services/orderService";
     import { addToast } from "$lib/state/toastState";
+    import { t } from "$lib/i18n";
 
     import type { Order } from "$lib/types";
 
@@ -50,17 +51,17 @@
             // Partial receive logic just for single order
             if (singleOrder) {
                 if (maxQuantity <= 0) {
-                    throw new Error("This order is already fully received");
+                    throw new Error($t("receive.already_received"));
                 }
 
                 const quantityToReceive = Number(receiveQuantity);
                 if (!Number.isFinite(quantityToReceive) || quantityToReceive <= 0) {
-                    throw new Error("Quantity to receive must be at least 1");
+                    throw new Error($t("receive.quantity_min"));
                 }
 
                 if (quantityToReceive > maxQuantity) {
                     throw new Error(
-                        `Cannot receive more than remaining quantity (${maxQuantity})`,
+                        $t("receive.quantity_max", { count: maxQuantity }),
                     );
                 }
                 const newTotalReceived =
@@ -161,13 +162,15 @@
 
             if (onSave) onSave();
             addToast(
-                `Marked ${orders.length} ${orders.length === 1 ? "order" : "orders"} as received.`,
+                orders.length === 1
+                    ? $t("receive.toast.success_singular", { count: orders.length })
+                    : $t("receive.toast.success_plural", { count: orders.length }),
                 "success",
             );
             isOpen = false;
         } catch (err: any) {
             console.error("Receive error:", err);
-            addToast("Error: " + err.message, "error");
+            addToast($t("receive.toast.error", { error: err.message }), "error");
         } finally {
             isLoading = false;
         }
@@ -180,12 +183,12 @@
     >
         <Dialog.Header>
             <Dialog.Title
-                >Receive {orders.length > 1 ? "Orders" : "Order"}</Dialog.Title
+                >{orders.length > 1 ? $t("receive.title_orders") : $t("receive.title_order")}</Dialog.Title
             >
             <Dialog.Description class="text-zinc-400">
-                Confirm reception date and storage location{orders.length > 1
-                    ? " for all selected orders"
-                    : ""}.
+                {orders.length > 1
+                    ? $t("receive.description_multi")
+                    : $t("receive.description_single")}
             </Dialog.Description>
         </Dialog.Header>
 
@@ -193,7 +196,7 @@
             {#if singleOrder}
                 <div class="grid gap-2">
                     <Label for="receive_qty" class="text-zinc-300"
-                        >Quantity to Receive</Label
+                        >{$t("receive.quantity_to_receive")}</Label
                     >
                     <div class="flex items-center gap-2">
                         <Input
@@ -205,7 +208,7 @@
                             class="bg-zinc-900 border-zinc-700"
                         />
                         <span class="text-xs text-zinc-500 whitespace-nowrap">
-                            / {maxQuantity} remaining
+                            {$t("receive.remaining", { count: maxQuantity })}
                         </span>
                     </div>
                 </div>
@@ -213,7 +216,7 @@
 
             <div class="grid gap-2">
                 <Label for="received_date" class="text-zinc-300"
-                    >Reception Date</Label
+                    >{$t("receive.reception_date")}</Label
                 >
                 <Input
                     id="received_date"
@@ -224,11 +227,11 @@
             </div>
             <div class="grid gap-2">
                 <Label for="storage_location" class="text-zinc-300"
-                    >Storage Location (Optional)</Label
+                    >{$t("receive.storage_location_optional")}</Label
                 >
                 <Input
                     id="storage_location"
-                    placeholder="Where is it stored?"
+                    placeholder={$t("receive.storage_placeholder")}
                     bind:value={storageLocation}
                     class="bg-zinc-900 border-zinc-700"
                     onkeydown={(e) => e.key === "Enter" && handleReceive()}
@@ -242,7 +245,7 @@
                 onclick={() => (isOpen = false)}
                 class="bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
             >
-                Cancel
+                {$t("common.cancel")}
             </Button>
             <Button
                 type="button"
@@ -250,7 +253,7 @@
                 disabled={isLoading}
                 class="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-                {isLoading ? "Processing..." : "Mark as Received"}
+                {isLoading ? $t("common.processing") : $t("receive.mark_received")}
             </Button>
         </Dialog.Footer>
     </Dialog.Content>

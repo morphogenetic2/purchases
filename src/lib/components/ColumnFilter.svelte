@@ -4,8 +4,19 @@
     import * as Popover from "$lib/components/ui/popover";
     import { Filter } from "lucide-svelte";
     import { Badge } from "$lib/components/ui/badge";
+    import { t } from "$lib/i18n";
 
-    let { title, options, selected = $bindable([]) } = $props();
+    let {
+        title,
+        options,
+        selected = $bindable([]),
+        formatOption = (option: string) => option,
+    } = $props<{
+        title: string;
+        options: string[];
+        selected: string[];
+        formatOption?: (option: string) => string;
+    }>();
 
     function toggleOption(option: string) {
         if (selected.includes(option)) {
@@ -47,7 +58,7 @@
                 variant="secondary"
                 class="rounded-sm px-1 font-normal hidden lg:inline-flex bg-emerald-500/20 text-emerald-500"
             >
-                {selected.length} selected
+                {$t("filter.selected_count", { count: selected.length })}
             </Badge>
         {/if}
     </Popover.Trigger>
@@ -64,7 +75,7 @@
                 disabled={options.length === 0 ||
                     selected.length === options.length}
             >
-                Select All
+                {$t("filter.select_all")}
             </Button>
             {#if selected.length > 0}
                 <Button
@@ -73,7 +84,7 @@
                     class="w-full justify-start text-xs h-8"
                     onclick={deselectAll}
                 >
-                    Deselect All
+                    {$t("filter.deselect_all")}
                 </Button>
             {/if}
         </div>
@@ -96,7 +107,7 @@
                         for={option}
                         class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1 truncate"
                     >
-                        {option}
+                        {formatOption(option)}
                     </label>
                 </div>
             {/each}

@@ -2,6 +2,7 @@
     import { Button } from "$lib/components/ui/button";
     import { ChevronLeft, ChevronRight } from "lucide-svelte";
     import { PAGINATION } from "$lib/constants";
+    import { t } from "$lib/i18n";
 
     let {
         currentPage,
@@ -31,12 +32,16 @@
     class="flex items-center justify-between px-4 py-3 border-t border-zinc-800"
 >
     <div class="text-sm text-zinc-500">
-        Showing {startItem} to {endItem} of {totalItems} orders
+        {$t("pagination.showing", {
+            start: startItem,
+            end: endItem,
+            total: totalItems,
+        })}
     </div>
     <div class="flex items-center gap-4">
         <!-- Page Size Selector -->
         <div class="flex items-center gap-2">
-            <span class="text-sm text-zinc-500">Per page:</span>
+            <span class="text-sm text-zinc-500">{$t("pagination.per_page")}</span>
             <select
                 class="bg-zinc-900 border border-zinc-700 text-zinc-300 text-sm rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 value={pageSize}
@@ -44,7 +49,7 @@
                     onPageSizeChange(Number(e.currentTarget.value))}
             >
                 {#each pageSizeOptions as size}
-                    <option value={size}>{size === 10000 ? "All" : size}</option
+                    <option value={size}>{size === 10000 ? $t("common.all") : size}</option
                     >
                 {/each}
             </select>
@@ -62,7 +67,10 @@
                 <ChevronLeft class="h-4 w-4" />
             </Button>
             <span class="text-sm text-zinc-300 px-3">
-                Page {currentPage} of {totalPages}
+                {$t("pagination.page_of", {
+                    page: currentPage,
+                    totalPages,
+                })}
             </span>
             <Button
                 variant="outline"

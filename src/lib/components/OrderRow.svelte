@@ -7,6 +7,7 @@
     import type { Order, Column } from "$lib/types";
     import { getStatusColor } from "$lib/utils";
     import { Checkbox } from "$lib/components/ui/checkbox";
+    import { localizeStatus, t } from "$lib/i18n";
 
     let {
         order,
@@ -157,8 +158,8 @@
                         onRevert(order.id)}
                 >
                     {order.status === "partially_received"
-                        ? "Partial"
-                        : order.status}
+                        ? $t("order_row.partial")
+                        : localizeStatus(order.status, $t)}
                 </Badge>
             </Table.Cell>
         {:else if col.id === "actions"}
@@ -170,7 +171,7 @@
                         onclick={() => onReceive(order.id)}
                         class="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white border-transparent"
                     >
-                        Receive
+                        {$t("order_row.receive")}
                     </Button>
                 {/if}
                 <Button

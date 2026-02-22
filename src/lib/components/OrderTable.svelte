@@ -13,16 +13,13 @@
     import * as DropdownMenu from "$lib/components/ui/dropdown-menu";
     import type { OrderState } from "$lib/state/orderState.svelte";
     import type { Order } from "$lib/types";
-    import {
-        GROUP_BY_OPTIONS,
-        GROUP_BY_LABELS,
-    } from "$lib/constants";
+    import { GROUP_BY_OPTIONS } from "$lib/constants";
+    import { localizeGroupBy, localizeStatus, t } from "$lib/i18n";
 
     // Build groupByOptions from constants
-    const groupByOptions = Object.values(GROUP_BY_OPTIONS).map((value) => ({
-        value,
-        label: GROUP_BY_LABELS[value],
-    }));
+    const groupByOptions = Object.values(
+        GROUP_BY_OPTIONS,
+    ) as Array<(typeof GROUP_BY_OPTIONS)[keyof typeof GROUP_BY_OPTIONS]>;
 
     import { orderService } from "$lib/services/orderService";
 
@@ -49,6 +46,49 @@
         onBulkReceive: (ids: string[]) => void;
         onRevert: (id: string) => void;
     }>();
+
+    const columnLabelKeyById: Record<string, string> = {
+        date_formatted: "column.date_formatted",
+        description: "column.description",
+        provider: "column.provider",
+        price_formatted: "column.price_formatted",
+        ordered_by: "column.ordered_by",
+        project_code: "column.project_code",
+        po_number: "column.po_number",
+        quantity: "column.quantity",
+        received_date: "column.received_date",
+        storage_location: "column.storage_location",
+        status: "column.status",
+        actions: "column.actions",
+    };
+
+    function columnLabel(id: string, fallback: string): string {
+        const key = columnLabelKeyById[id];
+        return key ? $t(key) : fallback;
+    }
+
+    function groupByButtonLabel(): string {
+        if (orderState.groupBy === GROUP_BY_OPTIONS.NONE) {
+            return $t("table.group");
+        }
+        if (orderState.groupBy === GROUP_BY_OPTIONS.DATE) {
+            return $t("table.group.by_date");
+        }
+        if (orderState.groupBy === GROUP_BY_OPTIONS.PROVIDER) {
+            return $t("table.group.by_provider");
+        }
+        if (orderState.groupBy === GROUP_BY_OPTIONS.REQUESTER) {
+            return $t("table.group.by_requester");
+        }
+        return $t("table.group.by_status");
+    }
+
+    function renderGroupLabel(group: { key: string; label: string }): string {
+        if (orderState.groupBy === GROUP_BY_OPTIONS.STATUS) {
+            return localizeStatus(group.key, $t);
+        }
+        return group.label || group.key;
+    }
 
     async function handleCellUpdate(id: string, field: string, value: any) {
         const order = orderState.rawOrders.find((o: Order) => o.id === id);
@@ -106,12 +146,14 @@
                 });
             orderState.rawOrders = restored;
             ids.forEach((id) => orderState.selectedIds.add(id));
-            addToast("Error deleting orders: " + error.message, "error");
+            addToast($t("table.toast.delete_error", { error: error.message }), "error");
             return false;
         }
 
         addToast(
-            `${ids.length} ${ids.length === 1 ? "order" : "orders"} deleted.`,
+            ids.length === 1
+                ? $t("table.toast.delete_success_singular", { count: ids.length })
+                : $t("table.toast.delete_success_plural", { count: ids.length }),
             "success",
         );
         return true;
@@ -132,16 +174,16 @@
         presetId: "requested_this_week" | "pending_by_requester",
     ) {
         orderState.applyBuiltInPreset(presetId);
-        addToast("Preset applied.", "success");
+        addToast($t("table.toast.preset_applied"), "success");
     }
 
     function applySavedPreset(id: string) {
         const found = orderState.applySavedPreset(id);
         if (found) {
-            addToast("Preset applied.", "success");
+            addToast($t("table.toast.preset_applied"), "success");
             return;
         }
-        addToast("Preset not found.", "error");
+        addToast($t("table.toast.preset_not_found"), "error");
     }
 
     function openSavePresetDialog() {
@@ -152,7 +194,7 @@
     function savePreset() {
         const trimmed = presetName.trim();
         if (!trimmed) {
-            addToast("Preset name is required.", "error");
+            addToast($t("table.toast.preset_name_required"), "error");
             return;
         }
 
@@ -160,15 +202,15 @@
             const mode = orderState.saveCurrentPreset(trimmed);
             addToast(
                 mode === "updated"
-                    ? "Preset updated."
-                    : "Preset saved.",
+                    ? $t("table.toast.preset_updated")
+                    : $t("table.toast.preset_saved"),
                 "success",
             );
             isSavePresetDialogOpen = false;
         } catch (error: unknown) {
             const message = error instanceof Error
                 ? error.message
-                : "Failed to save preset.";
+                : $t("table.toast.preset_save_failed");
             addToast(message, "error");
         }
     }
@@ -177,12 +219,12 @@
 <Card.Root class="bg-zinc-900 border-zinc-800">
     <Card.Header>
         <div class="flex items-center justify-between">
-            <Card.Title>Orders</Card.Title>
+            <Card.Title>{$t("table.title")}</Card.Title>
             <div class="flex items-center gap-2">
                 <div class="w-72 relative">
                     <Input
                         type="search"
-                        placeholder="Search orders..."
+                        placeholder={$t("table.search_placeholder")}
                         bind:value={orderState.searchTerm}
                         class="bg-zinc-950 border-zinc-700 text-zinc-100 pr-8"
                     />
@@ -191,7 +233,7 @@
                             type="button"
                             onclick={() => (orderState.searchTerm = "")}
                             class="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-zinc-500 hover:text-zinc-200 transition-colors rounded-sm hover:bg-zinc-800"
-                            title="Clear search"
+                            title={$t("table.clear_search")}
                         >
                             <X class="h-4 w-4" />
                         </button>
@@ -212,27 +254,19 @@
                         })}
                     >
                         <Layers class="h-4 w-4 mr-2" />
-                        {orderState.groupBy === "none"
-                            ? "Group"
-                            : orderState.groupBy === "date"
-                              ? "By Date"
-                              : orderState.groupBy === "provider"
-                                ? "By Provider"
-                                : orderState.groupBy === "requester"
-                                  ? "By Requester"
-                                  : "By Status"}
+                        {groupByButtonLabel()}
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content class="bg-zinc-950 border-zinc-800">
                         {#each groupByOptions as option}
                             <DropdownMenu.Item
                                 class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer {orderState.groupBy ===
-                                option.value
+                                option
                                     ? 'text-emerald-400'
                                     : ''}"
-                                onclick={() => orderState.setGroupBy(option.value)}
+                                onclick={() => orderState.setGroupBy(option)}
                             >
-                                {option.label}
-                                {#if orderState.groupBy === option.value}
+                                {localizeGroupBy(option, $t)}
+                                {#if orderState.groupBy === option}
                                     <span class="ml-auto text-emerald-500"
                                         >✓</span
                                     >
@@ -251,39 +285,39 @@
                         })}
                     >
                         <Bookmark class="h-4 w-4 mr-2" />
-                        Presets
+                        {$t("table.presets")}
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content class="bg-zinc-950 border-zinc-800 min-w-[240px]">
                         <DropdownMenu.Label class="text-zinc-500 text-xs uppercase tracking-wide">
-                            Quick Presets
+                            {$t("table.quick_presets")}
                         </DropdownMenu.Label>
                         <DropdownMenu.Item
                             class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer"
                             onclick={() =>
                                 applyBuiltInPreset("requested_this_week")}
                         >
-                            Requested This Week
+                            {$t("table.requested_this_week")}
                         </DropdownMenu.Item>
                         <DropdownMenu.Item
                             class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer"
                             onclick={() =>
                                 applyBuiltInPreset("pending_by_requester")}
                         >
-                            Pending by Requester
+                            {$t("table.pending_by_requester")}
                         </DropdownMenu.Item>
                         <DropdownMenu.Item
                             class="text-zinc-300 focus:bg-zinc-800 focus:text-white cursor-pointer"
                             onclick={() => {
                                 orderState.resetFilters();
-                                addToast("Filters reset.", "info");
+                                addToast($t("table.toast.filters_reset"), "info");
                             }}
                         >
-                            Reset Filters
+                            {$t("table.reset_filters")}
                         </DropdownMenu.Item>
 
                         <DropdownMenu.Separator class="bg-zinc-800" />
                         <DropdownMenu.Label class="text-zinc-500 text-xs uppercase tracking-wide">
-                            Saved Presets
+                            {$t("table.saved_presets")}
                         </DropdownMenu.Label>
 
                         {#if orderState.customPresets.length === 0}
@@ -291,7 +325,7 @@
                                 disabled
                                 class="text-zinc-500"
                             >
-                                No saved presets
+                                {$t("table.no_saved_presets")}
                             </DropdownMenu.Item>
                         {:else}
                             {#each orderState.customPresets as preset (preset.id)}
@@ -309,7 +343,7 @@
                             class="text-emerald-400 focus:bg-zinc-800 focus:text-emerald-300 cursor-pointer"
                             onclick={openSavePresetDialog}
                         >
-                            Save Current as Preset
+                            {$t("table.save_current_preset")}
                         </DropdownMenu.Item>
                     </DropdownMenu.Content>
                 </DropdownMenu.Root>
@@ -346,7 +380,7 @@
                                 >
                                     <div class="flex items-center gap-0.5">
                                         <ColumnFilter
-                                            title="Date"
+                                            title={$t("table.date")}
                                             options={orderState.filterOptions.date}
                                             bind:selected={
                                                 orderState.activeFilters.date
@@ -355,7 +389,7 @@
                                         <button
                                             onclick={() => orderState.toggleSort()}
                                             class="flex items-center hover:text-white transition-colors"
-                                            title="Toggle Sort"
+                                            title={$t("table.toggle_sort")}
                                         >
                                             <span
                                                 class="text-[10px] opacity-70 flex-shrink-0"
@@ -370,7 +404,7 @@
                                 <th
                                     use:resizable
                                     class="h-12 px-1 text-left align-middle font-medium text-zinc-400 w-[300px] overflow-hidden text-ellipsis whitespace-nowrap"
-                                    >Description</th
+                                    >{$t("table.description")}</th
                                 >
                             {:else if col.id === "provider"}
                                 <th
@@ -378,7 +412,7 @@
                                     class="h-12 px-1 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
-                                        title="Provider"
+                                        title={$t("table.provider")}
                                         options={orderState.filterOptions.provider}
                                         bind:selected={
                                             orderState.activeFilters.provider
@@ -389,7 +423,7 @@
                                 <th
                                     use:resizable
                                     class="h-12 px-1 text-right align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
-                                    >Price</th
+                                    >{$t("table.price")}</th
                                 >
                             {:else if col.id === "ordered_by"}
                                 <th
@@ -397,7 +431,7 @@
                                     class="h-12 px-1 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
-                                        title="Requester"
+                                        title={$t("table.requester")}
                                         options={orderState.filterOptions.requester}
                                         bind:selected={
                                             orderState.activeFilters.requester
@@ -410,8 +444,10 @@
                                     class="h-12 px-1 text-left align-middle font-medium text-zinc-400 overflow-hidden"
                                 >
                                     <ColumnFilter
-                                        title="Status"
+                                        title={$t("table.status")}
                                         options={orderState.filterOptions.status}
+                                        formatOption={(option: string) =>
+                                            localizeStatus(option, $t)}
                                         bind:selected={
                                             orderState.activeFilters.status
                                         }
@@ -420,19 +456,19 @@
                             {:else if col.id === "actions"}
                                 <th
                                     class="h-12 px-1 text-right align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
-                                    >Actions</th
+                                    >{$t("table.actions")}</th
                                 >
                             {:else if col.id === "quantity"}
                                 <th
                                     use:resizable
                                     class="h-12 px-1 text-center align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
-                                    >Qty</th
+                                    >{$t("table.qty")}</th
                                 >
                             {:else}
                                 <th
                                     use:resizable
                                     class="h-12 px-1 text-left align-middle font-medium text-zinc-400 overflow-hidden text-ellipsis whitespace-nowrap"
-                                    >{col.label}</th
+                                    >{columnLabel(col.id, col.label)}</th
                                 >
                             {/if}
                         {/each}
@@ -445,7 +481,7 @@
                                 colspan={orderState.visibleColumns.length + 1}
                                 class="h-24 text-center text-zinc-500"
                             >
-                                No orders found.
+                                {$t("table.no_orders")}
                             </Table.Cell>
                         </Table.Row>
                     {:else}
@@ -468,7 +504,7 @@
                                             <span
                                                 class="font-semibold text-zinc-200"
                                             >
-                                                {group.label}
+                                                {renderGroupLabel(group)}
                                             </span>
                                             <Badge
                                                 variant="secondary"
@@ -476,8 +512,8 @@
                                             >
                                                 {group.orders.length}
                                                 {group.orders.length === 1
-                                                    ? "order"
-                                                    : "orders"}
+                                                    ? $t("table.order_singular")
+                                                    : $t("table.order_plural")}
                                             </Badge>
                                         </div>
                                     </Table.Cell>
@@ -531,9 +567,9 @@
 
 <ConfirmDialog
     bind:open={isBulkDeleteConfirmOpen}
-    title="Delete selected orders?"
-    description="This action cannot be undone."
-    confirmText="Delete"
+    title={$t("table.confirm_delete_title")}
+    description={$t("table.confirm_delete_description")}
+    confirmText={$t("common.delete")}
     confirmVariant="destructive"
     onConfirm={confirmBulkDelete}
 />
@@ -541,20 +577,20 @@
 <Dialog.Root bind:open={isSavePresetDialogOpen}>
     <Dialog.Content class="sm:max-w-[425px] bg-zinc-950 border-zinc-800 text-zinc-100">
         <Dialog.Header>
-            <Dialog.Title>Save Filter Preset</Dialog.Title>
+            <Dialog.Title>{$t("table.preset.dialog_title")}</Dialog.Title>
             <Dialog.Description class="text-zinc-400">
-                Save current search, filters, and group mode for quick reuse.
+                {$t("table.preset.dialog_description")}
             </Dialog.Description>
         </Dialog.Header>
 
         <div class="grid gap-2 py-2">
             <label for="preset-name" class="text-sm text-zinc-300">
-                Preset Name
+                {$t("table.preset.name")}
             </label>
             <Input
                 id="preset-name"
                 bind:value={presetName}
-                placeholder="e.g. Requested This Week - ARN"
+                placeholder={$t("table.preset.placeholder")}
                 class="bg-zinc-900 border-zinc-700 text-zinc-100"
                 onkeydown={(event) => {
                     if (event.key === "Enter") {
@@ -571,13 +607,13 @@
                 onclick={() => (isSavePresetDialogOpen = false)}
                 class="bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
             >
-                Cancel
+                {$t("common.cancel")}
             </Button>
             <Button
                 onclick={savePreset}
                 class="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-                Save Preset
+                {$t("table.preset.save")}
             </Button>
         </Dialog.Footer>
     </Dialog.Content>
