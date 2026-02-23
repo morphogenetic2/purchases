@@ -264,8 +264,8 @@ const messages: Record<Locale, Record<string, string>> = {
         "toolbar.import_orders": "Importar / Añadir pedidos",
         "toolbar.export": "Exportar",
 
-        "page.revert_title": "¿Revertir estado de recepción?",
-        "page.revert_description": "Esto marcará el pedido como solicitado y limpiará los datos de recepción.",
+        "page.revert_title": "¿Revertir el estado de recepción?",
+        "page.revert_description": "Esto marcará el pedido como solicitado y eliminará los datos de recepción.",
         "page.revert_confirm": "Revertir",
         "page.toast.revert_success": "Pedido revertido a solicitado.",
         "page.toast.revert_error": "Error al actualizar pedido: {{error}}",
@@ -322,7 +322,7 @@ const messages: Record<Locale, Record<string, string>> = {
         "column.price_formatted": "Precio",
         "column.ordered_by": "Solicitante",
         "column.project_code": "Proyecto",
-        "column.po_number": "Núm. PO",
+        "column.po_number": "Núm. albarán",
         "column.quantity": "Cant.",
         "column.received_date": "Recibido",
         "column.storage_location": "Ubicación",
@@ -536,7 +536,7 @@ const messages: Record<Locale, Record<string, string>> = {
         "column.price_formatted": "Preu",
         "column.ordered_by": "Sol·licitant",
         "column.project_code": "Projecte",
-        "column.po_number": "Núm. PO",
+        "column.po_number": "Núm. comanda",
         "column.quantity": "Qtat.",
         "column.received_date": "Rebut",
         "column.storage_location": "Ubicació",
@@ -649,7 +649,7 @@ const messages: Record<Locale, Record<string, string>> = {
         "excel.preview": "Vista prèvia",
         "excel.uploading": "Pujant...",
         "excel.import_orders": "Importar comandes",
-        "excel.toast.file_error": "Error en llegir el fitxer Excel",
+        "excel.toast.file_error": "Error al llegir el fitxer Excel",
         "excel.toast.drop_excel": "Deixa anar un fitxer Excel (.xlsx o .xls)",
         "excel.toast.import_success": "Comandes importades correctament.",
         "excel.toast.unknown_error": "S'ha produït un error desconegut",
@@ -721,9 +721,9 @@ export function setLocale(value: Locale) {
 }
 
 export const localeOptions: Array<{ value: Locale; label: string }> = [
-    { value: "en", label: "ENG" },
+    { value: "en", label: "EN" },
     { value: "es", label: "ES" },
-    { value: "ca", label: "CAT" },
+    { value: "ca", label: "CA" },
 ];
 
 export const t = derived(locale, ($locale) => {
