@@ -2,6 +2,7 @@
     import { Button } from "$lib/components/ui/button";
     import { Trash2, Download, X, CheckCircle } from "lucide-svelte";
     import { fly } from "svelte/transition";
+    import { t } from "$lib/i18n";
 
     let { count, onClear, onReceive, onDelete, onExport } = $props<{
         count: number;
@@ -21,7 +22,7 @@
             class="flex items-center gap-2 border-r border-emerald-500/30 pr-4 mr-2"
         >
             <span class="text-sm font-medium text-emerald-100"
-                >{count} selected</span
+                >{$t("floating.selected", { count })}</span
             >
             <Button
                 variant="ghost"
@@ -39,7 +40,7 @@
             class="h-8 text-emerald-300 hover:text-emerald-100 hover:bg-emerald-900/50"
             onclick={onReceive}
         >
-            <CheckCircle class="mr-2 h-4 w-4" /> Receive
+            <CheckCircle class="mr-2 h-4 w-4" /> {$t("floating.receive")}
         </Button>
         <Button
             size="sm"
@@ -47,7 +48,7 @@
             class="h-8 text-emerald-300 hover:text-white hover:bg-emerald-900/50"
             onclick={onExport}
         >
-            <Download class="mr-2 h-4 w-4" /> Export
+            <Download class="mr-2 h-4 w-4" /> {$t("floating.export")}
         </Button>
         <Button
             size="sm"
@@ -55,7 +56,7 @@
             class="h-8 text-red-400 hover:text-red-300 hover:bg-red-950/50"
             onclick={onDelete}
         >
-            <Trash2 class="mr-2 h-4 w-4" /> Delete
+            <Trash2 class="mr-2 h-4 w-4" /> {$t("floating.delete")}
         </Button>
     </div>
 {/if}

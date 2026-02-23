@@ -9,6 +9,7 @@
   import * as Table from "$lib/components/ui/table";
   import * as Dialog from "$lib/components/ui/dialog";
   import { addToast } from "$lib/state/toastState";
+  import { t } from "$lib/i18n";
 
   // Import the new Excel module
   import {
@@ -57,7 +58,7 @@
       isMappingOpen = true; // Open mapping modal
     } catch (err) {
       console.error("Error parsing file:", err);
-      addToast("Error reading Excel file", "error");
+      addToast($t("excel.toast.file_error"), "error");
     }
   }
 
@@ -89,7 +90,7 @@
     if (file && (file.name.endsWith(".xlsx") || file.name.endsWith(".xls"))) {
       await processFile(file);
     } else {
-      addToast("Please drop an Excel file (.xlsx or .xls)", "error");
+      addToast($t("excel.toast.drop_excel"), "error");
     }
   }
 
@@ -126,12 +127,17 @@
       const { error } = await orderService.insertOrders(orders);
       if (error) throw error;
 
-      addToast("Orders imported successfully.", "success");
+      addToast($t("excel.toast.import_success"), "success");
       await invalidateAll();
       didUploadSucceed = true;
     } catch (err: any) {
       console.error("Upload Error:", err);
-      addToast("Error: " + (err.message || "Unknown error occurred"), "error");
+      addToast(
+        $t("excel.toast.error", {
+          error: err.message || $t("excel.toast.unknown_error"),
+        }),
+        "error",
+      );
     } finally {
       isUploading = false;
       if (didUploadSucceed) {
@@ -155,7 +161,7 @@
     variant="outline"
     class="bg-zinc-900 text-zinc-300 border-dashed border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800 hover:text-white"
   >
-    <Upload class="mr-2 h-4 w-4" /> Import / Append Orders
+    <Upload class="mr-2 h-4 w-4" /> {$t("toolbar.import_orders")}
   </Button>
 </div>
 
@@ -165,9 +171,9 @@
     class="sm:max-w-[600px] bg-zinc-900 border-zinc-800 text-zinc-100"
   >
     <Dialog.Header>
-      <Dialog.Title>Import Orders</Dialog.Title>
+      <Dialog.Title>{$t("excel.import_title")}</Dialog.Title>
       <Dialog.Description class="text-zinc-400">
-        Drop your Excel file or browse to select
+        {$t("excel.import_description")}
       </Dialog.Description>
     </Dialog.Header>
 
@@ -207,12 +213,12 @@
             <p
               class="text-xl font-medium text-zinc-200 group-hover:text-white transition-colors duration-300"
             >
-              {isDragging ? "Drop your file here" : "Drop Excel file here"}
+              {isDragging ? $t("excel.drop_here_active") : $t("excel.drop_here")}
             </p>
             <p
               class="text-sm text-zinc-500 group-hover:text-zinc-400 transition-colors duration-300"
             >
-              or
+              {$t("common.or")}
             </p>
           </div>
 
@@ -227,12 +233,12 @@
             }}
           >
             <Upload class="mr-2 h-4 w-4" />
-            Click to Browse
+            {$t("excel.click_browse")}
           </Button>
 
           <!-- Supported formats -->
           <p class="text-xs text-zinc-600 mt-2">
-            Supported formats: .xlsx, .xls
+            {$t("excel.supported_formats")}
           </p>
         </div>
       </div>
@@ -246,9 +252,9 @@
     class="sm:max-w-[800px] bg-zinc-900 border-zinc-800 text-zinc-100 p-0 overflow-hidden flex flex-col max-h-[90vh]"
   >
     <Dialog.Header class="p-6 pb-4">
-      <Dialog.Title>Map Columns</Dialog.Title>
+      <Dialog.Title>{$t("excel.map_columns")}</Dialog.Title>
       <Dialog.Description class="text-zinc-400"
-        >Map your Excel headers to the database fields.</Dialog.Description
+        >{$t("excel.map_description")}</Dialog.Description
       >
     </Dialog.Header>
 
@@ -259,10 +265,10 @@
         <Checkbox id="forceNew" bind:checked={forceNew} />
         <div class="flex flex-col">
           <Label for="forceNew" class="text-zinc-200 cursor-pointer"
-            >New Order</Label
+            >{$t("excel.new_order")}</Label
           >
           <span class="text-xs text-zinc-500"
-            >Select this when adding a new weekly order</span
+            >{$t("excel.new_order_hint")}</span
           >
         </div>
       </div>
@@ -276,7 +282,7 @@
                 bind:value={mapping[field.key]}
                 class="flex h-10 w-full items-center justify-between rounded-md border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-600 disabled:cursor-not-allowed disabled:opacity-50 text-zinc-100"
               >
-                <option value="">-- Ignore / Default --</option>
+                <option value="">{$t("excel.ignore_default")}</option>
                 {#each headers as header}
                   <option value={header}>{header}</option>
                 {/each}
@@ -313,7 +319,7 @@
         <h4
           class="mb-2 font-semibold text-sm uppercase text-zinc-500 tracking-wider"
         >
-          Preview
+          {$t("excel.preview")}
         </h4>
         <div class="rounded-md border border-zinc-800 overflow-x-auto">
           <Table.Root>
@@ -348,17 +354,19 @@
       <Button
         variant="secondary"
         onclick={() => (isMappingOpen = false)}
-        class="bg-zinc-900 border border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white">Cancel</Button
+        class="bg-zinc-900 border border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
       >
+        {$t("common.cancel")}
+      </Button>
       <Button
         onclick={handleUpload}
         disabled={isUploading}
         class="bg-emerald-600 hover:bg-emerald-700 text-white"
       >
         {#if isUploading}
-          Uploading...
+          {$t("excel.uploading")}
         {:else}
-          Import Orders
+          {$t("excel.import_orders")}
         {/if}
       </Button>
     </Dialog.Footer>

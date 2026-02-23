@@ -12,6 +12,7 @@
   import ExportDialog from "$lib/components/ExportDialog.svelte";
   import { supabase } from "$lib/supabaseClient";
   import ReceiveDialog from "$lib/components/ReceiveDialog.svelte";
+  import { t } from "$lib/i18n";
 
   let { data } = $props();
 
@@ -122,7 +123,7 @@
     const { data, error } = await orderService.revertReceive(revertTargetId);
     if (error) {
       Object.assign(targetOrder, previous);
-      addToast("Error updating order: " + error.message, "error");
+      addToast($t("page.toast.revert_error", { error: error.message }), "error");
       return false;
     }
 
@@ -130,7 +131,7 @@
       Object.assign(targetOrder, data);
     }
 
-    addToast("Order reverted to requested.", "success");
+    addToast($t("page.toast.revert_success"), "success");
     revertTargetId = null;
     return true;
   }
@@ -188,9 +189,9 @@
 
 <ConfirmDialog
   bind:open={isRevertConfirmOpen}
-  title="Revert receive status?"
-  description="This will mark the order as requested and clear received metadata."
-  confirmText="Revert"
+  title={$t("page.revert_title")}
+  description={$t("page.revert_description")}
+  confirmText={$t("page.revert_confirm")}
   confirmVariant="destructive"
   onConfirm={confirmRevertReceive}
 />

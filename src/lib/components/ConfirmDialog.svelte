@@ -1,13 +1,14 @@
 <script lang="ts">
     import * as Dialog from "$lib/components/ui/dialog";
     import { Button } from "$lib/components/ui/button";
+    import { t } from "$lib/i18n";
 
     let {
         open = $bindable(false),
-        title = "Are you sure?",
+        title = "",
         description = "",
-        confirmText = "Confirm",
-        cancelText = "Cancel",
+        confirmText = "",
+        cancelText = "",
         confirmVariant = "destructive",
         onConfirm,
     } = $props<{
@@ -39,7 +40,7 @@
 <Dialog.Root bind:open>
     <Dialog.Content class="bg-zinc-950 border-zinc-800 text-zinc-100 sm:max-w-[425px]">
         <Dialog.Header>
-            <Dialog.Title>{title}</Dialog.Title>
+            <Dialog.Title>{title || $t("confirm.title_default")}</Dialog.Title>
             {#if description}
                 <Dialog.Description class="text-zinc-400">
                     {description}
@@ -54,7 +55,7 @@
                 disabled={isLoading}
                 class="bg-zinc-900 border-zinc-700 text-zinc-200 hover:bg-zinc-800 hover:text-white"
             >
-                {cancelText}
+                {cancelText || $t("common.cancel")}
             </Button>
             <Button
                 variant={confirmVariant === "destructive"
@@ -63,7 +64,9 @@
                 onclick={handleConfirm}
                 disabled={isLoading}
             >
-                {isLoading ? "Processing..." : confirmText}
+                {isLoading
+                    ? $t("common.processing")
+                    : (confirmText || $t("common.confirm"))}
             </Button>
         </Dialog.Footer>
     </Dialog.Content>
