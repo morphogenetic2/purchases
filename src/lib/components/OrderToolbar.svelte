@@ -3,6 +3,7 @@
   import { Plus, Download } from "lucide-svelte";
   import ExcelIngestor from "$lib/components/ExcelIngestor.svelte";
   import PortalIngestor from "$lib/components/PortalIngestor.svelte";
+  import UserManager from "$lib/components/UserManager.svelte";
   import LanguageToggle from "$lib/components/LanguageToggle.svelte";
   import { t } from "$lib/i18n";
 
@@ -37,6 +38,7 @@
     </Button>
     <ExcelIngestor {requesters} />
     <PortalIngestor {requesters} />
+    <UserManager />
     <Button
       onclick={onNewOrder}
       class="bg-emerald-600 hover:bg-emerald-700 text-white"

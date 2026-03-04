@@ -16,24 +16,37 @@
   import { cn } from "$lib/utils";
 
   // ─── Portal name → initials mapping ─────────────────────────────────────────
-  // Full names as they appear in the procurement portal → initials used in-app
-  const PORTAL_NAME_MAP: Record<string, string> = {
-    "Francesca Mauro": "FM",
-    "Davide Arena": "DA",
-    "Mariana Azevedo": "MA",
-    "Aleixandre Rodrigo": "ARN",
-  };
+  let dbMappings = $state<Record<string, string>>({});
+
+  async function loadMappings() {
+    try {
+      const resp = await fetch("/api/requesters");
+      if (resp.ok) {
+        const data = await resp.json();
+        dbMappings = data.reduce((acc: any, curr: any) => {
+          acc[curr.full_name] = curr.initials;
+          return acc;
+        }, {});
+      }
+    } catch (e) {
+      console.error("Failed to load requester mappings", e);
+    }
+  }
 
   function resolveOrderedBy(portalName: string | null): string {
     if (!portalName) return "Unknown";
-    // Try exact match first
-    if (PORTAL_NAME_MAP[portalName]) return PORTAL_NAME_MAP[portalName];
-    // Try case-insensitive match
+
+    // Check DB mappings first
+    if (dbMappings[portalName]) return dbMappings[portalName];
+
+    // Case-insensitive check
     const lower = portalName.toLowerCase();
-    const found = Object.entries(PORTAL_NAME_MAP).find(
+    const found = Object.entries(dbMappings).find(
       ([k]) => k.toLowerCase() === lower,
     );
-    return found ? found[1] : portalName;
+    if (found) return found[1];
+
+    return portalName;
   }
 
   // ─── props ──────────────────────────────────────────────────────────────────
@@ -79,11 +92,17 @@
       scrapedRows = [];
       selectedRows = new Set();
       emptyReason = null;
+      loadMappings();
       if (!rememberCredentials) {
         username = "";
         password = "";
       }
     }
+  });
+
+  import { onMount } from "svelte";
+  onMount(() => {
+    loadMappings();
   });
 
   // ─── actions ────────────────────────────────────────────────────────────────

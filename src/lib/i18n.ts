@@ -278,6 +278,17 @@ const messages: Record<Locale, Record<string, string>> = {
         "portal.back": "← Back",
         "portal.toast_success": "Imported {{count}} order from portal",
         "portal.toast_success_plural": "Imported {{count}} orders from portal",
+
+        "users.button": "User Manager",
+        "users.title": "User Manager",
+        "users.description": "Manage the mapping between Ibecnet full names and app initials.",
+        "users.add_title": "Add New Mapping",
+        "users.full_name_placeholder": "Full Name (from Ibecnet)",
+        "users.initials_placeholder": "Initials",
+        "users.empty": "No mappings saved yet.",
+        "users.toast_add": "User mapping added successfully",
+        "users.toast_delete": "User mapping removed",
+        "users.toast_error": "Failed to process user mapping",
     },
     es: {
         "app.title": "Pedidos MiMe",
@@ -531,6 +542,17 @@ const messages: Record<Locale, Record<string, string>> = {
         "portal.back": "← Atrás",
         "portal.toast_success": "Se importó {{count}} pedido del portal",
         "portal.toast_success_plural": "Se importaron {{count}} pedidos del portal",
+
+        "users.button": "Gestor de Usuarios",
+        "users.title": "Gestor de Usuarios",
+        "users.description": "Gestiona la correspondencia entre los nombres completos de Ibecnet y las iniciales de la app.",
+        "users.add_title": "Añadir nueva correspondencia",
+        "users.full_name_placeholder": "Nombre completo (de Ibecnet)",
+        "users.initials_placeholder": "Iniciales",
+        "users.empty": "Aún no hay mapeos guardados.",
+        "users.toast_add": "Correspondencia de usuario añadida con éxito",
+        "users.toast_delete": "Correspondencia de usuario eliminada",
+        "users.toast_error": "Error al procesar la correspondencia de usuario",
     },
     ca: {
         "app.title": "Comandes MiMe",
@@ -784,6 +806,17 @@ const messages: Record<Locale, Record<string, string>> = {
         "portal.back": "← Enrere",
         "portal.toast_success": "S'ha importat {{count}} comanda del portal",
         "portal.toast_success_plural": "S'han importat {{count}} comandes del portal",
+
+        "users.button": "Gestor d'Usuaris",
+        "users.title": "Gestor d'Usuaris",
+        "users.description": "Gestiona la correspondència entre els noms complets d'Ibecnet i les inicials de l'app.",
+        "users.add_title": "Afegir nova correspondència",
+        "users.full_name_placeholder": "Nom complet (d'Ibecnet)",
+        "users.initials_placeholder": "Iniciales",
+        "users.empty": "Encara no hi ha mapejos desats.",
+        "users.toast_add": "Correspondència d'usuari afegida amb èxit",
+        "users.toast_delete": "Correspondència d'usuari eliminada",
+        "users.toast_error": "Error al processar la correspondència d'usuari",
     },
 };
 
