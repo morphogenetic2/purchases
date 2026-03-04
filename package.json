@@ -45,6 +45,7 @@
 		"@supabase/supabase-js": "^2.90.1",
 		"cmdk-sv": "^0.0.19",
 		"lucide-svelte": "^0.562.0",
+		"node-html-parser": "^7.1.0",
 		"xlsx": "https://cdn.sheetjs.com/xlsx-0.20.1/xlsx-0.20.1.tgz"
 	},
 	"overrides": {

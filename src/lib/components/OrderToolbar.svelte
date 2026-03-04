@@ -2,6 +2,7 @@
   import { Button } from "$lib/components/ui/button";
   import { Plus, Download } from "lucide-svelte";
   import ExcelIngestor from "$lib/components/ExcelIngestor.svelte";
+  import PortalIngestor from "$lib/components/PortalIngestor.svelte";
   import LanguageToggle from "$lib/components/LanguageToggle.svelte";
   import { t } from "$lib/i18n";
 
@@ -31,14 +32,17 @@
       onclick={onExport}
       class="bg-zinc-900 text-zinc-300 border-zinc-700 hover:bg-zinc-800 hover:text-white"
     >
-      <Download class="mr-2 h-4 w-4" /> {$t("toolbar.export")}
+      <Download class="mr-2 h-4 w-4" />
+      {$t("toolbar.export")}
     </Button>
     <ExcelIngestor {requesters} />
+    <PortalIngestor {requesters} />
     <Button
       onclick={onNewOrder}
       class="bg-emerald-600 hover:bg-emerald-700 text-white"
     >
-      <Plus class="mr-2 h-4 w-4" /> {$t("toolbar.new_order")}
+      <Plus class="mr-2 h-4 w-4" />
+      {$t("toolbar.new_order")}
     </Button>
   </div>
 </div>
