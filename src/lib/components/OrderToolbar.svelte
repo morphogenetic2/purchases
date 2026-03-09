@@ -7,14 +7,18 @@
   import LanguageToggle from "$lib/components/LanguageToggle.svelte";
   import { t } from "$lib/i18n";
 
+  import type { Order } from "$lib/types";
+
   let {
     onExport,
     onNewOrder,
     requesters = [],
+    existingOrders = [],
   } = $props<{
     onExport: () => void;
     onNewOrder: () => void;
     requesters: string[];
+    existingOrders: Order[];
   }>();
 </script>
 
@@ -37,7 +41,7 @@
       {$t("toolbar.export")}
     </Button>
     <ExcelIngestor {requesters} />
-    <PortalIngestor {requesters} />
+    <PortalIngestor {requesters} {existingOrders} />
     <UserManager />
     <Button
       onclick={onNewOrder}

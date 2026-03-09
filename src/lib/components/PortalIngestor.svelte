@@ -14,6 +14,7 @@
   import * as Dialog from "$lib/components/ui/dialog";
   import { t } from "$lib/i18n";
   import { cn } from "$lib/utils";
+  import type { Order } from "$lib/types";
 
   // ─── Portal name → initials mapping ─────────────────────────────────────────
   let dbMappings = $state<Record<string, string>>({});
@@ -50,7 +51,7 @@
   }
 
   // ─── props ──────────────────────────────────────────────────────────────────
-  let { requesters = [] } = $props<{ requesters?: string[] }>();
+  let { requesters = [], existingOrders = [] } = $props<{ requesters?: string[], existingOrders?: Order[] }>();
 
   // ─── state ──────────────────────────────────────────────────────────────────
   let open = $state(false);
@@ -58,11 +59,9 @@
     "credentials",
   );
 
-  // credentials form
   let username = $state("");
   let password = $state("");
   let rememberCredentials = $state(false);
-  let selectedPage = $state<"Delivery" | "Pending" | "Shop">("Delivery");
 
   // fetch state
   let loading = $state(false);
@@ -121,7 +120,6 @@
         body: JSON.stringify({
           username: username.trim(),
           password,
-          page: selectedPage,
         }),
       });
 
@@ -134,8 +132,27 @@
       }
 
       scrapedRows = data.orders ?? [];
-      if (data.empty || scrapedRows.length === 0) {
-        emptyReason = data.emptyReason ?? "No orders found in this section.";
+      
+      // Filter out orders that already exist in the database
+      scrapedRows = scrapedRows.filter((newOrder) => {
+        return !existingOrders.some((existing: Order) => {
+          // If both have PO number and they match, it's the same
+          if (newOrder.po_number && existing.po_number === newOrder.po_number && existing.provider === newOrder.provider) return true;
+
+          // Otherwise, match heuristically
+          const dateMatch = existing.order_date === newOrder.order_date;
+          const providerMatch = existing.provider === newOrder.provider;
+          const skuMatch = newOrder.sku ? existing.sku === newOrder.sku : true;
+          const descMatch = existing.description === newOrder.description;
+          const qtyMatch = existing.quantity === newOrder.quantity;
+          const reqMatch = existing.ordered_by === resolveOrderedBy(newOrder.ordered_by);
+          
+          return dateMatch && providerMatch && (skuMatch || descMatch) && qtyMatch && reqMatch;
+        });
+      });
+
+      if (scrapedRows.length === 0) {
+        emptyReason = $t("portal.empty_no_new_orders");
         step = "empty";
         return;
       }
@@ -176,17 +193,14 @@
     const orders = rows.map((r) => ({
       description: r.description || r.sku || "(no description)",
       provider: r.provider,
-      ordered_by:
-        selectedPage === "Shop"
-          ? resolveOrderedBy(username)
-          : resolveOrderedBy(r.ordered_by),
+      ordered_by: resolveOrderedBy(r.ordered_by),
       sku: r.sku ?? undefined,
       project_code: r.project_code ?? undefined,
       po_number: r.po_number ?? undefined,
       order_date: r.order_date ?? undefined,
       quantity: r.quantity,
       price: r.price ?? undefined,
-      status: selectedPage === "Shop" ? "requested" : "ordered",
+      status: "ordered",
     }));
 
     try {
@@ -302,21 +316,6 @@
           />
         </div>
 
-        <div class="flex flex-col gap-1.5">
-          <label class="text-sm font-medium text-zinc-300" for="portal-page">
-            {$t("portal.target_page")}
-          </label>
-          <select
-            id="portal-page"
-            bind:value={selectedPage}
-            class="rounded-md bg-zinc-800 border border-zinc-700 px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          >
-            <option value="Delivery">{$t("portal.page_delivery")}</option>
-            <option value="Pending">{$t("portal.page_pending")}</option>
-            <option value="Shop">{$t("portal.page_shop")}</option>
-          </select>
-        </div>
-
         <label
           class="flex items-center gap-2 text-sm text-zinc-400 cursor-pointer select-none"
         >
@@ -399,11 +398,7 @@
                   >{$t("portal.col_description")}</th
                 >
                 <th class="px-3 py-2 text-center">{$t("portal.col_qty")}</th>
-                {#if selectedPage === "Shop"}
-                  <th class="px-3 py-2 text-right">{$t("portal.col_price")}</th>
-                {:else}
-                  <th class="px-3 py-2 text-left">{$t("portal.col_date")}</th>
-                {/if}
+                <th class="px-3 py-2 text-left">{$t("portal.col_date")}</th>
                 <th class="px-3 py-2 text-left"
                   >{$t("portal.col_requested_by")}</th
                 >
@@ -444,25 +439,11 @@
                   <td class="px-3 py-2 text-center text-zinc-200"
                     >{row.quantity}</td
                   >
-                  {#if selectedPage === "Shop"}
-                    <td
-                      class="px-3 py-2 text-right text-zinc-200 whitespace-nowrap"
-                    >
-                      {#if row.price !== null}
-                        {row.price.toFixed(2)}€
-                      {:else}
-                        —
-                      {/if}
-                    </td>
-                  {:else}
-                    <td class="px-3 py-2 text-zinc-500 whitespace-nowrap"
-                      >{row.order_date ?? "—"}</td
-                    >
-                  {/if}
+                  <td class="px-3 py-2 text-zinc-500 whitespace-nowrap"
+                    >{row.order_date ?? "—"}</td
+                  >
                   <td class="px-3 py-2 text-zinc-400 whitespace-nowrap"
-                    >{selectedPage === "Shop"
-                      ? username
-                      : (row.ordered_by ?? "—")}</td
+                    >{row.ordered_by ?? "—"}</td
                   >
                 </tr>
               {/each}

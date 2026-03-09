@@ -24,11 +24,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		throw error(400, 'username and password are required');
 	}
 
-	const { username, password, page = 'Delivery' } = body as {
+	const { username, password } = body as {
 		username: string;
 		password: string;
-		page?: string;
 	};
+	const page = 'Tracking';
 
 	if (!PORTAL_BASE) {
 		throw error(500, 'PORTAL_BASE_URL environment variable is not set');
@@ -127,29 +127,19 @@ interface ScrapedOrder {
 }
 
 function parsePortalTable(pageUrl: string, html: string): { orders: ScrapedOrder[], empty: boolean, emptyReason: string | null } {
-	let checkoutTable: any = null;
 	let datatable: any = null;
 
-	const checkoutIdx = html.indexOf('id="checkout"');
 	let datatableIdx = html.indexOf('id="datatable"');
 	if (datatableIdx === -1) datatableIdx = html.indexOf('id=datatable');
 
-	if (checkoutIdx > -1) {
-		const startIdx = html.lastIndexOf('<table', checkoutIdx);
-		const endIdx = html.indexOf('</table>', checkoutIdx) + 8;
-		const tableHtml = html.substring(startIdx, endIdx);
-		checkoutTable = parse(tableHtml).querySelector('table');
-	} else if (datatableIdx > -1) {
+	if (datatableIdx > -1) {
 		const startIdx = html.lastIndexOf('<table', datatableIdx);
 		const endIdx = html.indexOf('</table>', datatableIdx) + 8;
 		const tableHtml = html.substring(startIdx, endIdx);
 		datatable = parse(tableHtml).querySelector('table');
 	}
 
-	if (checkoutTable) {
-		const orders = parseShopTable(checkoutTable);
-		return { orders, empty: orders.length === 0, emptyReason: orders.length === 0 ? 'Your shopping cart is empty.' : null };
-	} else if (datatable) {
+	if (datatable) {
 		const orders = parseDatatable(datatable, pageUrl);
 		return { orders, empty: orders.length === 0, emptyReason: orders.length === 0 ? `No pending orders found in this section.` : null };
 	}
@@ -177,79 +167,11 @@ function parsePortalTable(pageUrl: string, html: string): { orders: ScrapedOrder
 
 	throw error(
 		502,
-		'Could not find a recognized table (#checkout or #datatable). The portal HTML structure may have changed, or the session was not established. (Response saved to debug_portal_response.html)'
+		'Could not find a recognized table (#datatable). The portal HTML structure may have changed, or the session was not established. (Response saved to debug_portal_response.html)'
 	);
 }
 
-function parseShopTable(table: any): ScrapedOrder[] {
-	let rows = table.querySelectorAll('tbody tr');
-	if (!rows || rows.length === 0) {
-		rows = table.querySelectorAll('tr').slice(1); // skip header if no tbody
-	}
-	const orders: ScrapedOrder[] = [];
 
-	for (const row of rows) {
-		const cells = row.querySelectorAll('td');
-		if (cells.length < 10) continue;
-
-		// 0: Checkbox
-		// 1: Product(SKU)
-		// 2: Empty
-		// 3: Description
-		// 4: Price (<input name="price">)
-		// 5: Supplier Name
-		// 6: Type
-		// 7: Quantity (<input name="quant">)
-		// 8: Project (<select>)
-		// 9: Comments
-
-		const sku = cells[1].text.trim() || null;
-		const description = cells[3].text.trim();
-		const provider = cells[5].text.trim() || 'Unknown';
-
-		let price: number | null = null;
-		const priceInput = cells[4].querySelector('input[name="price"]');
-		if (priceInput) {
-			const pval = priceInput.getAttribute('value');
-			if (pval) price = parseFloat(pval.replace(',', '.'));
-		}
-
-		let quantity = 1;
-		const qtyInput = cells[7].querySelector('input[name="quant"]');
-		if (qtyInput) {
-			const qval = qtyInput.getAttribute('value');
-			if (qval) quantity = parseFloat(qval.replace(',', '.')) || 1;
-		}
-
-		let project_code: string | null = null;
-		const projectSelect = cells[8].querySelector('select');
-		if (projectSelect) {
-			const selectedOption = projectSelect.querySelector('option[selected]') || projectSelect.querySelector('option');
-			if (selectedOption) {
-				const fullTxt = selectedOption.text.trim();
-				// Usually formatting is like "L32CEDEVISE - DEVISE", so grab the first part
-				project_code = fullTxt.split(' - ')[0];
-			}
-		}
-
-		// Skip empty rows (just in case)
-		if (!provider && !sku && !description) continue;
-
-		orders.push({
-			project_code,
-			order_date: new Date().toISOString().split('T')[0], // Use today since they are in the cart
-			po_number: null,
-			provider,
-			sku,
-			description,
-			quantity,
-			price,
-			ordered_by: null
-		});
-	}
-
-	return orders;
-}
 
 function parseDatatable(table: any, pageUrl: string): ScrapedOrder[] {
 	let rows = table.querySelectorAll('tbody tr');
@@ -265,7 +187,7 @@ function parseDatatable(table: any, pageUrl: string): ScrapedOrder[] {
 
 	for (const row of rows) {
 		const cells = row.querySelectorAll('td');
-		if (cells.length < 16) continue;
+		if (cells.length < 12) continue;
 
 		// Helper: get full value preferring `title` attr, fallback to text
 		const fullText = (cell: any, preferTitle = true): string => {
@@ -283,7 +205,7 @@ function parseDatatable(table: any, pageUrl: string): ScrapedOrder[] {
 
 		const project_code = fullText(cells[1], false) || null;
 		const rawDate = fullText(cells[2], false);
-		const po_number = fullText(cells[5], false) || fullText(cells[3], false) || null; // 5 is Orders(PO), 3 is Carts
+		const po_number = fullText(cells[5], false) || null; // 5 is Orders(PO)
 		const provider = fullText(cells[7]) || 'Unknown';
 		const sku = fullText(cells[8]) || null;
 		const description = fullText(cells[9]) || '';

@@ -156,6 +156,7 @@
     onExport={() => (isExportOpen = true)}
     onNewOrder={handleAdd}
     requesters={orderState.filterOptions.requester}
+    existingOrders={orderState.rawOrders}
   />
 
   <OrderTable

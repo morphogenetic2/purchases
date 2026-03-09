@@ -59,6 +59,8 @@ export class OrderState {
     sortDirection = $state("desc");
     groupBy = $state<GroupByOption>(GROUP_BY_OPTIONS.DATE);
     selectedIds = new SvelteSet<string>();
+    isLoading = $state(false);
+    isProcessing = $state(false);
 
     // Pagination
     currentPage = $state(1);
