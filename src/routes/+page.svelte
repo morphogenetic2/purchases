@@ -155,6 +155,7 @@
   <OrderToolbar
     onExport={() => (isExportOpen = true)}
     onNewOrder={handleAdd}
+    onResolveDuplicates={() => invalidateAll()}
     requesters={orderState.filterOptions.requester}
     existingOrders={orderState.rawOrders}
   />

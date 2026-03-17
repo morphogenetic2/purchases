@@ -17,6 +17,36 @@ export interface Order {
     is_received?: boolean;
 }
 
+export interface DuplicateOrderSignature {
+    order_date: string;
+    description: string;
+    sku: string;
+    provider: string;
+    ordered_by: string;
+    project_code: string;
+    po_number: string;
+    unit_price: string;
+    status: string;
+    received_date: string;
+    storage_location: string;
+}
+
+export interface DuplicateOrderGroup {
+    key: string;
+    signature: DuplicateOrderSignature;
+    orders: Order[];
+    totalQuantity: number;
+    totalQuantityReceived: number;
+}
+
+export type DuplicateResolutionAction = "merge" | "delete";
+
+export interface ResolveDuplicateGroupPayload {
+    action: DuplicateResolutionAction;
+    groupKey: string;
+    ids: string[];
+}
+
 export interface Column {
     id: keyof Order | "actions" | "price_formatted" | "date_formatted"; // Extended keys for display
     label: string;

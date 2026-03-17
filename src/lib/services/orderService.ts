@@ -1,5 +1,5 @@
 import { ORDER_STATUS } from "$lib/constants";
-import type { Order } from "$lib/types";
+import type { Order, ResolveDuplicateGroupPayload } from "$lib/types";
 
 interface ReceiveOptions {
     receivedDate?: string;
@@ -144,6 +144,18 @@ export const orderService = {
         const response = await fetch('/api/orders', {
             method: 'POST',
             body: JSON.stringify(orders),
+            headers: { 'Content-Type': 'application/json' }
+        });
+        return handleResponse(response);
+    },
+
+    /**
+     * Resolve one duplicate group by merging quantities or deleting extra rows
+     */
+    async resolveDuplicateGroup(payload: ResolveDuplicateGroupPayload) {
+        const response = await fetch('/api/orders/duplicates', {
+            method: 'POST',
+            body: JSON.stringify(payload),
             headers: { 'Content-Type': 'application/json' }
         });
         return handleResponse(response);

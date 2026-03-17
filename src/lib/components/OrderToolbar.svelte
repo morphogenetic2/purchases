@@ -4,6 +4,7 @@
   import ExcelIngestor from "$lib/components/ExcelIngestor.svelte";
   import PortalIngestor from "$lib/components/PortalIngestor.svelte";
   import UserManager from "$lib/components/UserManager.svelte";
+  import DuplicateOrdersDialog from "$lib/components/DuplicateOrdersDialog.svelte";
   import LanguageToggle from "$lib/components/LanguageToggle.svelte";
   import { t } from "$lib/i18n";
 
@@ -12,11 +13,13 @@
   let {
     onExport,
     onNewOrder,
+    onResolveDuplicates,
     requesters = [],
     existingOrders = [],
   } = $props<{
     onExport: () => void;
     onNewOrder: () => void;
+    onResolveDuplicates: () => void | Promise<void>;
     requesters: string[];
     existingOrders: Order[];
   }>();
@@ -43,6 +46,10 @@
     <ExcelIngestor {requesters} />
     <PortalIngestor {requesters} {existingOrders} />
     <UserManager />
+    <DuplicateOrdersDialog
+      orders={existingOrders}
+      onResolved={onResolveDuplicates}
+    />
     <Button
       onclick={onNewOrder}
       class="bg-emerald-600 hover:bg-emerald-700 text-white"
