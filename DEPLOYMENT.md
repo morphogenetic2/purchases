@@ -94,6 +94,7 @@ using (true);
 | `PUBLIC_SUPABASE_ANON_KEY` | Copy **anon** / **public** key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Copy **service_role** / **secret** key (Reveal it first) |
 | `LAB_PASSWORD` | **Create your own shared password** (e.g. `secret-lab-pass`) |
+| `CRON_SECRET` | Create a random secret (at least 16 characters) to secure the scheduled Supabase heartbeat |
 
 1. Click **Deploy**.
 2. Wait ~1 minute. You should see "Congratulations!".

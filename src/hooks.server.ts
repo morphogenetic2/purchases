@@ -3,7 +3,9 @@ import { LAB_PASSWORD } from '$env/static/private';
 import { hasValidLabAccessToken } from '$lib/server/labAccess';
 
 export const handle: Handle = async ({ event, resolve }) => {
-    if (event.url.pathname !== '/login') {
+    const isCronHeartbeat = event.url.pathname === '/api/cron/heartbeat';
+
+    if (event.url.pathname !== '/login' && !isCronHeartbeat) {
         const token = event.cookies.get('lab_access_token');
         if (!hasValidLabAccessToken(token, LAB_PASSWORD)) {
             if (event.url.pathname.startsWith('/api/')) {

@@ -15,6 +15,11 @@
   import { t } from "$lib/i18n";
   import { cn } from "$lib/utils";
   import type { Order } from "$lib/types";
+  import {
+    reconcilePortalOrders,
+    type PortalOrder,
+    type ReconciledPortalOrder,
+  } from "$lib/utils/portalMatching";
 
   // ─── Portal name → initials mapping ─────────────────────────────────────────
   let dbMappings = $state<Record<string, string>>({});
@@ -68,18 +73,7 @@
   let errorMsg = $state<string | null>(null);
 
   // scraped data
-  type ScrapedRow = {
-    project_code: string | null;
-    order_date: string | null;
-    po_number: string | null;
-    provider: string;
-    sku: string | null;
-    description: string;
-    quantity: number;
-    price: number | null;
-    ordered_by: string | null;
-  };
-  let scrapedRows = $state<ScrapedRow[]>([]);
+  let scrapedRows = $state<ReconciledPortalOrder[]>([]);
   let selectedRows = $state<Set<number>>(new Set());
   let emptyReason = $state<string | null>(null);
 
@@ -131,34 +125,24 @@
         return;
       }
 
-      scrapedRows = data.orders ?? [];
-      
-      // Filter out orders that already exist in the database
-      scrapedRows = scrapedRows.filter((newOrder) => {
-        return !existingOrders.some((existing: Order) => {
-          // If both have PO number and they match, it's the same
-          if (newOrder.po_number && existing.po_number === newOrder.po_number && existing.provider === newOrder.provider) return true;
-
-          // Otherwise, match heuristically
-          const dateMatch = existing.order_date === newOrder.order_date;
-          const providerMatch = existing.provider === newOrder.provider;
-          const skuMatch = newOrder.sku ? existing.sku === newOrder.sku : true;
-          const descMatch = existing.description === newOrder.description;
-          const qtyMatch = existing.quantity === newOrder.quantity;
-          const reqMatch = existing.ordered_by === resolveOrderedBy(newOrder.ordered_by);
-          
-          return dateMatch && providerMatch && (skuMatch || descMatch) && qtyMatch && reqMatch;
-        });
-      });
+      scrapedRows = reconcilePortalOrders(
+        (data.orders ?? []) as PortalOrder[],
+        existingOrders,
+      );
 
       if (scrapedRows.length === 0) {
-        emptyReason = $t("portal.empty_no_new_orders");
+        emptyReason = "All portal rows are already linked to an order.";
         step = "empty";
         return;
       }
 
-      // Pre-select all rows
-      selectedRows = new Set(scrapedRows.map((_, i) => i));
+      // Pre-select safe imports and unambiguous PO updates. Ambiguous rows
+      // deliberately require a future manual-resolution flow.
+      selectedRows = new Set(
+        scrapedRows
+          .map((row, index) => (row.action === "ambiguous" ? null : index))
+          .filter((index): index is number => index !== null),
+      );
       step = "preview";
     } catch (e: unknown) {
       errorMsg = e instanceof Error ? e.message : "Unexpected network error";
@@ -168,6 +152,7 @@
   }
 
   function toggleRow(i: number) {
+    if (scrapedRows[i]?.action === "ambiguous") return;
     const next = new Set(selectedRows);
     if (next.has(i)) next.delete(i);
     else next.add(i);
@@ -175,10 +160,17 @@
   }
 
   function toggleAll() {
-    if (selectedRows.size === scrapedRows.length) {
+    const selectableCount = scrapedRows.filter(
+      (row) => row.action !== "ambiguous",
+    ).length;
+    if (selectedRows.size === selectableCount) {
       selectedRows = new Set();
     } else {
-      selectedRows = new Set(scrapedRows.map((_, i) => i));
+      selectedRows = new Set(
+        scrapedRows
+          .map((row, index) => (row.action === "ambiguous" ? null : index))
+          .filter((index): index is number => index !== null),
+      );
     }
   }
 
@@ -189,8 +181,7 @@
     step = "importing";
     errorMsg = null;
 
-    // Map ScrapedRow → Order insert shape
-    const orders = rows.map((r) => ({
+    const orders = rows.filter((row) => row.action === "import").map((r) => ({
       description: r.description || r.sku || "(no description)",
       provider: r.provider,
       ordered_by: resolveOrderedBy(r.ordered_by),
@@ -199,14 +190,28 @@
       po_number: r.po_number ?? undefined,
       order_date: r.order_date ?? undefined,
       quantity: r.quantity,
-      price: r.price ?? undefined,
+      unit_price: r.price ?? undefined,
       status: "ordered",
     }));
 
     try {
-      await orderService.insertOrders(orders);
+      const updates = rows.filter(
+        (row): row is ReconciledPortalOrder & { action: "link_po"; existingOrder: Order } =>
+          row.action === "link_po" && Boolean(row.existingOrder),
+      );
+      const results = await Promise.all([
+        ...(orders.length > 0 ? [orderService.insertOrders(orders)] : []),
+        ...updates.map((row) =>
+          orderService.updateOrder(row.existingOrder.id, {
+            po_number: row.po_number ?? undefined,
+          }),
+        ),
+      ]);
+
+      const failed = results.find((result) => result.error);
+      if (failed?.error) throw new Error(failed.error.message);
       await invalidateAll();
-      const n = orders.length;
+      const n = orders.length + updates.length;
       addToast(
         $t(n === 1 ? "portal.toast_success" : "portal.toast_success_plural", {
           count: n,
@@ -369,7 +374,7 @@
             onclick={toggleAll}
             class="underline underline-offset-2 hover:text-zinc-100 transition-colors"
           >
-            {selectedRows.size === scrapedRows.length
+            {selectedRows.size === scrapedRows.filter((row) => row.action !== "ambiguous").length
               ? $t("portal.deselect_all")
               : $t("portal.select_all")}
           </button>
@@ -394,6 +399,7 @@
                 <th class="px-3 py-2 text-left">{$t("portal.col_project")}</th>
                 <th class="px-3 py-2 text-left">{$t("portal.col_supplier")}</th>
                 <th class="px-3 py-2 text-left">{$t("portal.col_sku")}</th>
+                <th class="px-3 py-2 text-left">PO</th>
                 <th class="px-3 py-2 text-left"
                   >{$t("portal.col_description")}</th
                 >
@@ -402,6 +408,7 @@
                 <th class="px-3 py-2 text-left"
                   >{$t("portal.col_requested_by")}</th
                 >
+                <th class="px-3 py-2 text-left">Action</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-zinc-800">
@@ -416,6 +423,7 @@
                     <input
                       type="checkbox"
                       checked={selectedRows.has(i)}
+                      disabled={row.action === "ambiguous"}
                       onclick={(e) => e.stopPropagation()}
                       onchange={() => toggleRow(i)}
                       class="accent-emerald-500"
@@ -432,6 +440,9 @@
                     class="px-3 py-2 text-emerald-400 font-mono whitespace-nowrap"
                     >{row.sku ?? "—"}</td
                   >
+                  <td class="px-3 py-2 text-amber-300 font-mono whitespace-nowrap"
+                    >{row.po_number ?? "—"}</td
+                  >
                   <td
                     class="px-3 py-2 text-zinc-300 max-w-[200px] truncate"
                     title={row.description}>{row.description || "—"}</td
@@ -445,6 +456,18 @@
                   <td class="px-3 py-2 text-zinc-400 whitespace-nowrap"
                     >{row.ordered_by ?? "—"}</td
                   >
+                  <td class="px-3 py-2 whitespace-nowrap">
+                    {#if row.action === "link_po"}
+                      <span
+                        class="text-sky-300"
+                        title={row.existingOrder?.description}
+                      >Update PO on: {row.existingOrder?.description ?? row.existingOrder?.sku}</span>
+                    {:else if row.action === "ambiguous"}
+                      <span class="text-amber-300">Multiple possible matches</span>
+                    {:else}
+                      <span class="text-emerald-300">Import as new</span>
+                    {/if}
+                  </td>
                 </tr>
               {/each}
             </tbody>
