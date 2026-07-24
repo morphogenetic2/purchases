@@ -8,9 +8,8 @@
   import { orderService } from "$lib/services/orderService";
   import { addToast } from "$lib/state/toastState";
   import { exportOrdersToExcel } from "$lib/utils/export";
-  import type { Order, RealtimeEventPayload } from "$lib/types";
+  import type { Order } from "$lib/types";
   import ExportDialog from "$lib/components/ExportDialog.svelte";
-  import { supabase } from "$lib/supabaseClient";
   import ReceiveDialog from "$lib/components/ReceiveDialog.svelte";
   import { t } from "$lib/i18n";
 
@@ -24,30 +23,6 @@
   // Sync state when data refreshes (e.g. after invalidateAll)
   $effect(() => {
     orderState.setOrders((data.orders as Order[]) || []);
-  });
-
-  // Realtime Subscription
-  $effect(() => {
-    const channel = supabase
-      .channel("table-db-changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "orders",
-        },
-        (payload) => {
-          orderState.handleRealtimeEvent(
-            payload as unknown as RealtimeEventPayload<Order>,
-          );
-        },
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
   });
 
   // Reset pagination when search/filters change

@@ -1,7 +1,7 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { LAB_PASSWORD } from '$env/static/private';
 import type { Actions } from './$types';
-import { VALID_TOKEN } from '../../hooks.server';
+import { createLabAccessToken, SESSION_MAX_AGE_SECONDS } from '$lib/server/labAccess';
 
 export const actions: Actions = {
     default: async ({ request, cookies }) => {
@@ -9,12 +9,12 @@ export const actions: Actions = {
         const password = data.get('password');
 
         if (password === LAB_PASSWORD) {
-            cookies.set('lab_access_token', VALID_TOKEN, {
+            cookies.set('lab_access_token', createLabAccessToken(LAB_PASSWORD), {
                 path: '/',
                 httpOnly: true,
                 sameSite: 'strict',
                 secure: process.env.NODE_ENV === 'production',
-                maxAge: 60 * 60 * 24 * 7 // 1 week
+                maxAge: SESSION_MAX_AGE_SECONDS
             });
             throw redirect(303, '/');
         }

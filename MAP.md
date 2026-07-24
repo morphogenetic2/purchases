@@ -22,14 +22,9 @@ Browser UI (Svelte components)
   -> SvelteKit API routes (server)
   -> supabaseAdmin (service role client)
   -> Supabase Postgres (orders table)
-
-Browser UI also:
-  -> supabase anon client
-  -> realtime channel "postgres_changes" on orders
-  -> orderState.handleRealtimeEvent(...)
 ```
 
-Important: `src/hooks.server.ts` currently enforces cookie auth on all routes except `/login` (including `/api/*`), even though the comment says API routes should bypass auth.
+Important: `src/hooks.server.ts` enforces a signed lab-session cookie on all routes except `/login`, including all API routes.
 
 ## 3) Directory Ownership Map
 
@@ -38,7 +33,7 @@ src/
   routes/
     +layout.svelte                 # imports global CSS + favicon
     +page.server.ts                # initial orders fetch from Supabase (server-side)
-    +page.svelte                   # orchestration page (toolbar/table/dialogs/realtime)
+    +page.svelte                   # orchestration page (toolbar/table/dialogs)
     login/
       +page.svelte                 # password form UI
       +page.server.ts              # validates LAB_PASSWORD, sets auth cookie
@@ -48,7 +43,6 @@ src/
 
   lib/
     server/supabaseAdmin.ts        # service-role Supabase client (server only)
-    supabaseClient.ts              # anon Supabase client (browser/realtime)
     services/orderService.ts       # all client->API calls + response normalization
     state/orderState.svelte.ts     # client-side state model + derived filtering/grouping/paging
     excel/

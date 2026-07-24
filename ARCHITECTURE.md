@@ -248,10 +248,8 @@ interface ActiveFilters {
 3.  Calls `orderService.upsertOrder(order)`
 4.  POST request to `/api/orders`
 5.  API uses `supabaseAdmin` to upsert into database
-6.  Supabase sends a "Realtime" broadcast
-7.  All connected clients receive the INSERT event
-8.  `OrderState.handleRealtimeEvent()` adds the new order to `rawOrders`
-9.  UI updates automatically via Svelte reactivity
+6.  The client calls `invalidateAll()` to reload the server-authorized order list
+7.  UI updates with the refreshed data
 
 ### Importing from Excel
 
@@ -273,8 +271,7 @@ interface ActiveFilters {
 3.  Calls `orderService.quickReceive(id)` or `bulkReceive(ids)`
 4.  POST to `/api/orders/receive`
 5.  API updates status to 'received', sets received_date to today (or provided date)
-6.  Supabase broadcasts UPDATE event
-7.  All clients update automatically
+6.  The client calls `invalidateAll()` to refresh the order list
 
 ---
 
@@ -282,17 +279,16 @@ interface ActiveFilters {
 
 ### Authentication
 
-- Simple cookie-based authentication via `hooks.server.ts`
-- All routes except `/login` require a valid `lab_access_token` cookie
-- The token value is checked against `VALID_TOKEN` (hardcoded 'authenticated')
+- Shared-password authentication via `hooks.server.ts`
+- All page and API routes except `/login` require a signed, expiry-bound `lab_access_token` cookie
+- The cookie is signed with `LAB_PASSWORD`, so a browser cannot forge it without the password
 
 ### Database Security (RLS)
 
 The `schema.sql` file defines Row Level Security policies:
 
-- **SELECT**: Allowed for both `anon` and `authenticated` roles (required for realtime subscriptions to work)
-- **INSERT/UPDATE/DELETE**: NOT allowed for `anon` role
-- All data modifications MUST go through the SvelteKit API routes
+- No client-facing policies are created for `orders` or `requesters`
+- All reads and modifications go through the SvelteKit API routes after the cookie check
 - API routes use `supabaseAdmin` (service role key) which bypasses RLS
 
 ### Environment Variables

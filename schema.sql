@@ -21,13 +21,17 @@ create table public.orders (
 -- Enable Row Level Security
 alter table public.orders enable row level security;
 
--- Create policy to allow ANYONE to READ (Select)
--- This is required for Realtime subscriptions to work on the client side
-create policy "Allow Anon Select"
-on public.orders
-for select
-to anon, authenticated
-using (true);
+-- No client-facing policies are created. The SvelteKit server uses the
+-- service-role client after checking the lab access cookie; browser clients
+-- must not be able to read the purchase data directly.
 
--- Note: No policies for INSERT/UPDATE/DELETE are created for 'anon'.
--- This means only the Service Role (Server-Side) can modify data.
+create table public.requesters (
+  id uuid default gen_random_uuid() primary key,
+  full_name text not null,
+  initials text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+alter table public.requesters enable row level security;
+
+-- As with orders, requester management goes through authenticated server APIs.

@@ -1,19 +1,16 @@
-import { redirect, type Handle } from '@sveltejs/kit';
-
-const VALID_TOKEN = 'authenticated';
+import { error, redirect, type Handle } from '@sveltejs/kit';
+import { LAB_PASSWORD } from '$env/static/private';
+import { hasValidLabAccessToken } from '$lib/server/labAccess';
 
 export const handle: Handle = async ({ event, resolve }) => {
-    // Allow API routes to bypass auth check (they handle their own auth)
-    // The previous rule didn't actually check for /api properly
-    const isApi = event.url.pathname.startsWith('/api/');
-    if (!isApi && event.url.pathname !== '/login') {
+    if (event.url.pathname !== '/login') {
         const token = event.cookies.get('lab_access_token');
-        // Verify the token value, not just its existence
-        if (token !== VALID_TOKEN) {
+        if (!hasValidLabAccessToken(token, LAB_PASSWORD)) {
+            if (event.url.pathname.startsWith('/api/')) {
+                throw error(401, 'Unauthorized');
+            }
             throw redirect(303, '/login');
         }
     }
     return resolve(event);
 };
-
-export { VALID_TOKEN };
